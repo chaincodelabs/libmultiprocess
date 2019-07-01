@@ -42,7 +42,7 @@ target_link_libraries(mpgen PRIVATE -L${capnp_LIBRARY_DIRS} capnpc)
 install(TARGETS mpgen EXPORT Multiprocess RUNTIME DESTINATION bin)
 
 configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/libmultiprocess.pc" @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libmultiprocess.pc" DESTINATION "pkgconfig")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libmultiprocess.pc" DESTINATION "lib/pkgconfig")
 
 install(EXPORT Multiprocess DESTINATION lib/cmake/Multiprocess)
 
