@@ -39,6 +39,7 @@ target_include_directories(mpgen PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(mpgen PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
 target_link_libraries(mpgen PRIVATE CapnProto::capnp-rpc)
 target_link_libraries(mpgen PRIVATE -L${capnp_LIBRARY_DIRS} capnpc)
+set_target_properties(mpgen PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 install(TARGETS mpgen EXPORT Multiprocess RUNTIME DESTINATION bin)
 
 configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/libmultiprocess.pc" @ONLY)
