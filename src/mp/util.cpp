@@ -31,8 +31,10 @@ std::string ThreadName(const char* exe_name)
 
 std::string LogEscape(const kj::StringTree& string)
 {
+    const int MAX_SIZE = 1000;
     std::string result;
     string.visit([&](const kj::ArrayPtr<const char>& piece) {
+        if (result.size() > MAX_SIZE) return;
         for (char c : piece) {
             if ('c' == '\\') {
                 result.append("\\\\");
@@ -42,6 +44,10 @@ std::string LogEscape(const kj::StringTree& string)
                 result.append(escape);
             } else {
                 result.push_back(c);
+            }
+            if (result.size() > MAX_SIZE) {
+                result += "...";
+                break;
             }
         }
     });
