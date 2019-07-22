@@ -69,7 +69,7 @@ void CustomBuildField(TypeList<>,
                 .emplace(std::piecewise_construct, std::forward_as_tuple(&connection),
                     std::forward_as_tuple(
                         connection.m_threads.add(kj::heap<ProxyServer<Thread>>(thread_context, std::thread{})),
-                        connection))
+                        &connection, /* destroy_connection= */ false))
                 .first;
     }
 
@@ -83,10 +83,11 @@ void CustomBuildField(TypeList<>,
         // request_thread to point to the calling thread.
         auto request = connection.m_thread_map.makeThreadRequest();
         request.setName(thread_context.thread_name);
-        request_thread = request_threads
-                             .emplace(std::piecewise_construct, std::forward_as_tuple(&connection),
-                                 std::forward_as_tuple(request.send().getResult(), connection))
-                             .first; // Nonblocking due to capnp request pipelining.
+        request_thread =
+            request_threads
+                .emplace(std::piecewise_construct, std::forward_as_tuple(&connection),
+                    std::forward_as_tuple(request.send().getResult(), &connection, /* destroy_connection= */ false))
+                .first; // Nonblocking due to capnp request pipelining.
     }
 
     auto context = output.init();
@@ -126,7 +127,8 @@ auto PassField(TypeList<>, ServerContext& server_context, const Fn& fn, const Ar
                         request_thread =
                             g_thread_context.request_threads
                                 .emplace(std::piecewise_construct, std::forward_as_tuple(server.m_connection),
-                                    std::forward_as_tuple(context_arg.getCallbackThread(), *server.m_connection))
+                                    std::forward_as_tuple(context_arg.getCallbackThread(), server.m_connection,
+                                        /* destroy_connection= */ false))
                                 .first;
                     } else {
                         // If recursive call, avoid remove request_threads map
@@ -168,29 +170,6 @@ auto PassField(TypeList<>, ServerContext& server_context, const Fn& fn, const Ar
                                 }
                             }),
         kj::mv(future.promise));
-}
-
-
-template <typename Interface, typename Impl>
-ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client client, Connection& connection)
-    : m_client(std::move(client)), m_connection(&connection)
-{
-    {
-        std::unique_lock<std::mutex> lock(m_connection->m_loop.m_mutex);
-        m_connection->m_loop.addClient(lock);
-    }
-    m_cleanup = m_connection->addSyncCleanup([this]() {
-        // Release client capability by move-assigning to temporary.
-        {
-            typename Interface::Client(std::move(self().m_client));
-        }
-        {
-            std::unique_lock<std::mutex> lock(m_connection->m_loop.m_mutex);
-            m_connection->m_loop.removeClient(lock);
-        }
-        m_connection = nullptr;
-    });
-    self().construct();
 }
 
 template <typename Value>
@@ -449,7 +428,8 @@ void ReadFieldUpdate(TypeList<unsigned char*>,
 template <typename Interface, typename Impl>
 std::unique_ptr<Impl> MakeProxyClient(InvokeContext& context, typename Interface::Client&& client)
 {
-    return std::make_unique<ProxyClient<Interface>>(std::move(client), context.connection);
+    return std::make_unique<ProxyClient<Interface>>(
+        std::move(client), &context.connection, /* destroy_connection= */ false);
 }
 
 template <typename Interface, typename Impl>
@@ -491,7 +471,8 @@ void ReadFieldNew(TypeList<std::function<FnR(FnParams...)>>,
 {
     if (input.has()) {
         using Interface = typename Decay<decltype(input.get())>::Calls;
-        auto client = std::make_shared<ProxyClient<Interface>>(input.get(), invoke_context.connection);
+        auto client = std::make_shared<ProxyClient<Interface>>(
+            input.get(), &invoke_context.connection, /* destroy_connection= */ false);
         emplace(ProxyCallFn<decltype(client)>{std::move(client)});
     }
 };

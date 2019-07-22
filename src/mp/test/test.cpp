@@ -26,7 +26,7 @@ KJ_TEST("Call FooInterface methods")
         auto connection_client = std::make_unique<Connection>(loop, kj::mv(pipe.ends[0]), true);
         auto foo_client = std::make_unique<ProxyClient<messages::FooInterface>>(
             connection_client->m_rpc_system.bootstrap(ServerVatId().vat_id).castAs<messages::FooInterface>(),
-            *connection_client);
+            connection_client.get(), /* destroy_connection= */ false);
         foo_promise.set_value(std::move(foo_client));
         disconnect_client = [&] { loop.sync([&] { connection_client.reset(); }); };
 
@@ -34,7 +34,7 @@ KJ_TEST("Call FooInterface methods")
             auto foo_server = kj::heap<ProxyServer<messages::FooInterface>>(new FooImplementation, true, connection);
             return capnp::Capability::Client(kj::mv(foo_server));
         });
-        loop.m_task_set->add(connection_server->m_network.onDisconnect().then([&] { connection_server.reset(); }));
+        connection_server->onDisconnect([&] { connection_server.reset(); });
         loop.loop();
     });
 

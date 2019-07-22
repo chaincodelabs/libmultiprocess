@@ -48,7 +48,7 @@ public:
     using Interface = Interface_;
     using Impl = Impl_;
 
-    ProxyClientBase(typename Interface::Client client, Connection& connection);
+    ProxyClientBase(typename Interface::Client client, Connection* connection, bool destroy_connection);
     ~ProxyClientBase() noexcept;
 
     // Methods called during client construction/destruction that can optionally
@@ -60,7 +60,9 @@ public:
 
     typename Interface::Client m_client;
     Connection* m_connection;
-    CleanupIt m_cleanup;
+    bool m_destroy_connection;
+    CleanupIt m_cleanup; //!< Pointer to self-cleanup callback registered to handle connection object getting destroyed
+                         //!< before this client object.
 };
 
 //! Customizable (through template specialization) base class used in generated ProxyClient implementations from
