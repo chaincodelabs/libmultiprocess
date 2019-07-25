@@ -475,6 +475,41 @@ struct ThreadContext
     bool loop_thread = false;
 };
 
+//! Given stream file descriptor, make a new ProxyClient object to send requests
+//! over the stream. Also create a new Connection object embedded in the
+//! client that is freed when the client is closed.
+template <typename InitInterface>
+std::unique_ptr<ProxyClient<InitInterface>> ConnectStream(EventLoop& loop, int fd, bool add_client)
+{
+    typename InitInterface::Client init_client(nullptr);
+    std::unique_ptr<Connection> connection;
+    loop.sync([&] {
+        auto stream =
+            loop.m_io_context.lowLevelProvider->wrapSocketFd(fd, kj::LowLevelAsyncIoProvider::TAKE_OWNERSHIP);
+        connection = std::make_unique<Connection>(loop, kj::mv(stream), add_client);
+        init_client = connection->m_rpc_system.bootstrap(ServerVatId().vat_id).castAs<InitInterface>();
+        Connection* connection_ptr = connection.get();
+        connection->onDisconnect([&loop, connection_ptr] {
+            loop.log() << "IPC client: unexpected network disconnect.";
+            delete connection_ptr;
+        });
+    });
+    return std::make_unique<ProxyClient<InitInterface>>(
+        kj::mv(init_client), connection.release(), /* destroy_connection= */ true);
+}
+
+//! Given stream and a callback to construct a new ProxyServer object that
+//! handles requests from the stream, create a new Connection callback, pass it
+//! to the callback, use the returned ProxyServer to handle requests, and delete
+//! the proxyserver if the connection is disconnected.
+//! This should be called from the event loop thread.
+void ServeStream(EventLoop& loop,
+    kj::Own<kj::AsyncIoStream>&& stream,
+    std::function<capnp::Capability::Client(Connection&)> make_server);
+
+//! Same as above but accept file descriptor rather than stream object.
+void ServeStream(EventLoop& loop, int fd, std::function<capnp::Capability::Client(Connection&)> make_server);
+
 extern thread_local ThreadContext g_thread_context;
 
 } // namespace mp
