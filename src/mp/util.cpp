@@ -13,8 +13,11 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
-#include <syscall.h>
 #include <unistd.h>
+
+#if __linux__
+#include <syscall.h>
+#endif
 
 namespace mp {
 namespace {
