@@ -5,14 +5,32 @@
 #include <mp/util.h>
 
 #include <kj/array.h>
-#include <mp/proxy.h>
 #include <pthread.h>
 #include <sstream>
 #include <stdio.h>
+#include <sys/resource.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <sys/wait.h>
 #include <syscall.h>
 #include <unistd.h>
 
 namespace mp {
+namespace {
+
+//! Return highest possible file descriptor.
+size_t MaxFd()
+{
+    struct rlimit nofile;
+    if (getrlimit(RLIMIT_NOFILE, &nofile) == 0) {
+        return nofile.rlim_cur - 1;
+    } else {
+        return 1023;
+    }
+}
+
+} // namespace
 
 std::string ThreadName(const char* exe_name)
 {
@@ -52,6 +70,51 @@ std::string LogEscape(const kj::StringTree& string)
         }
     });
     return result;
+}
+
+int SpawnProcess(int& pid, FdToArgsFn&& fd_to_args)
+{
+    int fds[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) != 0) {
+        throw std::system_error(errno, std::system_category());
+    }
+
+    pid = fork();
+    if (close(fds[pid ? 0 : 1]) != 0) {
+        throw std::system_error(errno, std::system_category());
+    }
+    if (!pid) {
+        int maxFd = MaxFd();
+        for (int fd = 3; fd < maxFd; ++fd) {
+            if (fd != fds[0]) {
+                close(fd);
+            }
+        }
+        ExecProcess(fd_to_args(fds[0]));
+    }
+    return fds[1];
+}
+
+void ExecProcess(const std::vector<std::string>& args)
+{
+    std::vector<char*> argv;
+    for (const auto& arg : args) {
+        argv.push_back(const_cast<char*>(arg.c_str()));
+    }
+    argv.push_back(nullptr);
+    if (execvp(argv[0], argv.data()) != 0) {
+        perror("execlp failed");
+        _exit(1);
+    }
+}
+
+int WaitProcess(int pid)
+{
+    int status;
+    if (::waitpid(pid, &status, 0 /* options */) != pid) {
+        throw std::system_error(errno, std::system_category());
+    }
+    return status;
 }
 
 } // namespace mp

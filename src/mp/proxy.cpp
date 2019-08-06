@@ -311,10 +311,28 @@ kj::Promise<void> ProxyServer<ThreadMap>::makeThread(MakeThreadContext context)
 
 std::atomic<int> server_reqs{0};
 
-
 std::string LongThreadName(const char* exe_name)
 {
     return g_thread_context.thread_name.empty() ? ThreadName(exe_name) : g_thread_context.thread_name;
+}
+
+void ServeStream(EventLoop& loop,
+    kj::Own<kj::AsyncIoStream>&& stream,
+    std::function<capnp::Capability::Client(Connection&)> make_server)
+{
+    loop.m_incoming_connections.emplace_front(loop, kj::mv(stream), make_server);
+    auto it = loop.m_incoming_connections.begin();
+    it->onDisconnect([&loop, it] {
+        loop.log() << "IPC server: socket disconnected.";
+        loop.m_incoming_connections.erase(it);
+    });
+}
+
+void ServeStream(EventLoop& loop, int fd, std::function<capnp::Capability::Client(Connection&)> make_server)
+{
+    ServeStream(loop,
+        loop.m_io_context.lowLevelProvider->wrapSocketFd(fd, kj::LowLevelAsyncIoProvider::TAKE_OWNERSHIP),
+        std::move(make_server));
 }
 
 } // namespace mp

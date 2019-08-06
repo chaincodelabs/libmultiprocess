@@ -17,6 +17,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace mp {
 
@@ -359,6 +360,23 @@ std::string ThreadName(const char* exe_name);
 //! Escape binary string for use in log so it doesn't trigger unicode decode
 //! errors in python unit tests.
 std::string LogEscape(const kj::StringTree& string);
+
+//! Callback type used by SpawnProcess below.
+using FdToArgsFn = std::function<std::vector<std::string>(int fd)>;
+
+//! Spawn a new process that communicates with the current process over a socket
+//! pair. Returns pid through an output argument, and file descriptor for the
+//! local side of the socket. Invokes fd_to_args callback with the remote file
+//! descriptor number which returns the command line arguments that should be
+//! used to execute the process, and which should have the remote file
+//! descriptor embedded in whatever format the child process expects.
+int SpawnProcess(int& pid, FdToArgsFn&& fd_to_args);
+
+//! Call execvp with vector args.
+void ExecProcess(const std::vector<std::string>& args);
+
+//! Wait for a process to exit and return its exit code.
+int WaitProcess(int pid);
 
 inline char* CharCast(char* c) { return c; }
 inline char* CharCast(unsigned char* c) { return (char*)c; }
