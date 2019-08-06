@@ -255,7 +255,11 @@ struct Waiter
     std::function<void()> m_fn;
 };
 
-
+//! Object holding network & rpc state associated with either an incoming server
+//! connection, or an outgoing client connection. It must be created and destroyed
+//! on the event loop thread.
+//! In addition to Cap'n Proto state, it also holds lists of callbacks to run
+//! when the connection is closed.
 class Connection
 {
 public:
@@ -297,8 +301,23 @@ public:
     //! disconnect() is called.
     void addAsyncCleanup(std::function<void()> fn);
 
+    //! Add disconnect handler.
+    template <typename F>
+    void onDisconnect(F&& f)
+    {
+        // Add disconnect handler to local TaskSet to ensure it is cancelled and
+        // will never after connection object is destroyed. But when disconnect
+        // handler fires, do not call the function f right away, instead add it
+        // to the EventLoop TaskSet to avoid "Promise callback destroyed itself"
+        // error in cases where f deletes this Connection object.
+        m_on_disconnect.add(m_network.onDisconnect().then(
+            kj::mvCapture(f, [this](F&& f) { m_loop.m_task_set->add(kj::evalLater(kj::mv(f))); })));
+    }
+
     EventLoop& m_loop;
     kj::Own<kj::AsyncIoStream> m_stream;
+    LoggingErrorHandler m_error_handler{m_loop};
+    kj::TaskSet m_on_disconnect{m_error_handler};
     ::capnp::TwoPartyVatNetwork m_network;
     ::capnp::RpcSystem<::capnp::rpc::twoparty::VatId> m_rpc_system;
 
@@ -325,6 +344,30 @@ struct ServerVatId
     ::capnp::rpc::twoparty::VatId::Builder vat_id{message.getRoot<::capnp::rpc::twoparty::VatId>()};
     ServerVatId() { vat_id.setSide(::capnp::rpc::twoparty::Side::SERVER); }
 };
+
+template <typename Interface, typename Impl>
+ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client client,
+    Connection* connection,
+    bool destroy_connection)
+    : m_client(std::move(client)), m_connection(connection), m_destroy_connection(destroy_connection)
+{
+    {
+        std::unique_lock<std::mutex> lock(m_connection->m_loop.m_mutex);
+        m_connection->m_loop.addClient(lock);
+    }
+    m_cleanup = m_connection->addSyncCleanup([this]() {
+        // Release client capability by move-assigning to temporary.
+        {
+            typename Interface::Client(std::move(self().m_client));
+        }
+        {
+            std::unique_lock<std::mutex> lock(m_connection->m_loop.m_mutex);
+            m_connection->m_loop.removeClient(lock);
+        }
+        m_connection = nullptr;
+    });
+    self().construct();
+}
 
 template <typename Interface, typename Impl>
 ProxyClientBase<Interface, Impl>::~ProxyClientBase() noexcept
@@ -357,6 +400,11 @@ ProxyClientBase<Interface, Impl>::~ProxyClientBase() noexcept
             {
                 std::unique_lock<std::mutex> lock(m_connection->m_loop.m_mutex);
                 m_connection->m_loop.removeClient(lock);
+            }
+
+            if (m_destroy_connection) {
+                delete m_connection;
+                m_connection = nullptr;
             }
         });
     }
