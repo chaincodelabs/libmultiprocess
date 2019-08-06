@@ -31,7 +31,10 @@ target_include_directories(multiprocess PUBLIC
   $<INSTALL_INTERFACE:include>
   ${CAPNP_INCLUDE_DIRECTORY}
   ${Boost_INCLUDE_DIR})
-set_target_properties(multiprocess PROPERTIES PUBLIC_HEADER "${MP_PUBLIC_HEADERS}")
+set_target_properties(multiprocess PROPERTIES
+    PUBLIC_HEADER "${MP_PUBLIC_HEADERS}"
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED YES)
 install(TARGETS multiprocess EXPORT Multiprocess ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include/mp)
 
 add_executable(mpgen src/mp/gen.cpp)
@@ -39,7 +42,10 @@ target_include_directories(mpgen PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(mpgen PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
 target_link_libraries(mpgen PRIVATE CapnProto::capnp-rpc)
 target_link_libraries(mpgen PRIVATE -L${capnp_LIBRARY_DIRS} capnpc)
-set_target_properties(mpgen PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+set_target_properties(mpgen PROPERTIES
+    INSTALL_RPATH_USE_LINK_PATH TRUE
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED YES)
 install(TARGETS mpgen EXPORT Multiprocess RUNTIME DESTINATION bin)
 
 configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/libmultiprocess.pc" @ONLY)
@@ -86,5 +92,8 @@ if(BUILD_TESTING)
   target_link_libraries(mptest PRIVATE CapnProto::capnp-rpc)
   target_link_libraries(mptest PRIVATE CapnProto::kj-test)
   target_link_libraries(mptest PRIVATE multiprocess)
+  set_target_properties(mptest PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED YES)
   add_test(NAME mptest COMMAND mptest)
 endif()
