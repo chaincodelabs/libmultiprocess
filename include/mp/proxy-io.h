@@ -119,7 +119,7 @@ class EventLoop
 {
 public:
     //! Construct event loop object.
-    EventLoop(const char* exe_name, LogFn log_fn);
+    EventLoop(const char* exe_name, LogFn log_fn, void* context = nullptr);
     ~EventLoop();
 
     //! Run event loop. Does not return until shutdown. This should only be
@@ -204,7 +204,11 @@ public:
     //! List of connections.
     std::list<Connection> m_incoming_connections;
 
+    //! External logging callback.
     LogFn m_log_fn;
+
+    //! External context pointer.
+    void* m_context;
 };
 
 //! Single element task queue used to handle recursive capnp calls. (If server

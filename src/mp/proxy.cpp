@@ -123,8 +123,8 @@ void Connection::addAsyncCleanup(std::function<void()> fn)
     m_async_cleanup_fns.emplace(m_async_cleanup_fns.begin(), std::move(fn));
 }
 
-EventLoop::EventLoop(const char* exe_name, LogFn log_fn)
-    : m_exe_name(exe_name), m_io_context(kj::setupAsyncIo()), m_log_fn(std::move(log_fn))
+EventLoop::EventLoop(const char* exe_name, LogFn log_fn, void* context)
+    : m_exe_name(exe_name), m_io_context(kj::setupAsyncIo()), m_log_fn(std::move(log_fn)), m_context(context)
 {
     int fds[2];
     KJ_SYSCALL(socketpair(AF_UNIX, SOCK_STREAM, 0, fds));
