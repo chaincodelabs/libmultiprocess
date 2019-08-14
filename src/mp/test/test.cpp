@@ -23,7 +23,7 @@ KJ_TEST("Call FooInterface methods")
         EventLoop loop("mptest", [](bool raise, const std::string& log) {});
         auto pipe = loop.m_io_context.provider->newTwoWayPipe();
 
-        auto connection_client = std::make_unique<Connection>(loop, kj::mv(pipe.ends[0]), true);
+        auto connection_client = std::make_unique<Connection>(loop, kj::mv(pipe.ends[0]));
         auto foo_client = std::make_unique<ProxyClient<messages::FooInterface>>(
             connection_client->m_rpc_system.bootstrap(ServerVatId().vat_id).castAs<messages::FooInterface>(),
             connection_client.get(), /* destroy_connection= */ false);

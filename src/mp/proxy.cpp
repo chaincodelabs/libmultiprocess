@@ -236,17 +236,6 @@ void EventLoop::startAsyncThread(std::unique_lock<std::mutex>& lock)
     }
 }
 
-void AddClient(EventLoop& loop)
-{
-    std::unique_lock<std::mutex> lock(loop.m_mutex);
-    loop.addClient(lock);
-}
-void RemoveClient(EventLoop& loop)
-{
-    std::unique_lock<std::mutex> lock(loop.m_mutex);
-    loop.removeClient(lock);
-}
-
 ProxyServer<Thread>::ProxyServer(ThreadContext& thread_context, std::thread&& thread)
     : m_thread_context(thread_context), m_thread(std::move(thread))
 {

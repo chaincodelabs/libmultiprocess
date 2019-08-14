@@ -101,11 +101,7 @@ public:
      * appropriate times depending on semantics of the particular method being
      * wrapped. */
     bool m_owned;
-    /**
-     * Connection is a pointer rather than a reference because for the Init
-     * server, the server object needs to be created before the connection.
-     */
-    Connection* m_connection;
+    Connection& m_connection;
 };
 
 //! Customizable (through template specialization) base class used in generated ProxyServer implementations from

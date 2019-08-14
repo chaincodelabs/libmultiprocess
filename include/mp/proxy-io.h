@@ -44,7 +44,7 @@ struct ServerInvokeContext : InvokeContext
     int req;
 
     ServerInvokeContext(ProxyServer& proxy_server, CallContext& call_context, int req)
-        : InvokeContext{*proxy_server.m_connection}, proxy_server{proxy_server}, call_context{call_context}, req{req}
+        : InvokeContext{proxy_server.m_connection}, proxy_server{proxy_server}, call_context{call_context}, req{req}
     {
     }
 };
@@ -207,9 +207,6 @@ public:
     LogFn m_log_fn;
 };
 
-void AddClient(EventLoop& loop);
-void RemoveClient(EventLoop& loop);
-
 //! Single element task queue used to handle recursive capnp calls. (If server
 //! makes an callback into the client in the middle of a request, while client
 //! thread is blocked waiting for server response, this is what allows the
@@ -263,15 +260,13 @@ struct Waiter
 class Connection
 {
 public:
-    Connection(EventLoop& loop, kj::Own<kj::AsyncIoStream>&& stream_, bool add_client)
+    Connection(EventLoop& loop, kj::Own<kj::AsyncIoStream>&& stream_)
         : m_loop(loop), m_stream(kj::mv(stream_)),
           m_network(*m_stream, ::capnp::rpc::twoparty::Side::CLIENT, ::capnp::ReaderOptions()),
           m_rpc_system(::capnp::makeRpcClient(m_network))
     {
-        if (add_client) {
-            std::unique_lock<std::mutex> lock(m_loop.m_mutex);
-            m_loop.addClient(lock);
-        }
+        std::unique_lock<std::mutex> lock(m_loop.m_mutex);
+        m_loop.addClient(lock);
     }
     Connection(EventLoop& loop,
         kj::Own<kj::AsyncIoStream>&& stream_,
@@ -381,7 +376,7 @@ ProxyClientBase<Interface, Impl>::~ProxyClientBase() noexcept
     //   down while external code is still holding client references.
     //
     // The first case is handled here in destructor when m_loop is not null. The
-    // second case is handled by the m_cleanup function, which sets m_loop to
+    // second case is handled by the m_cleanup function, which sets m_connection to
     // null so nothing happens here.
     if (m_connection) {
         // Remove m_cleanup callback so it doesn't run and try to access
@@ -412,10 +407,11 @@ ProxyClientBase<Interface, Impl>::~ProxyClientBase() noexcept
 
 template <typename Interface, typename Impl>
 ProxyServerBase<Interface, Impl>::ProxyServerBase(Impl* impl, bool owned, Connection& connection)
-    : m_impl(impl), m_owned(owned), m_connection(&connection)
+    : m_impl(impl), m_owned(owned), m_connection(connection)
 {
     assert(impl != nullptr);
-    AddClient(connection.m_loop);
+    std::unique_lock<std::mutex> lock(m_connection.m_loop.m_mutex);
+    m_connection.m_loop.addClient(lock);
 }
 
 template <typename Interface, typename Impl>
@@ -428,12 +424,13 @@ ProxyServerBase<Interface, Impl>::~ProxyServerBase()
         // (event loop) thread since destructors could be making IPC calls or
         // doing expensive cleanup.
         if (m_owned) {
-            m_connection->addAsyncCleanup([impl] { delete impl; });
+            m_connection.addAsyncCleanup([impl] { delete impl; });
         }
         m_impl = nullptr;
         m_owned = false;
     }
-    RemoveClient(m_connection->m_loop); // FIXME: Broken when connection is null?
+    std::unique_lock<std::mutex> lock(m_connection.m_loop.m_mutex);
+    m_connection.m_loop.removeClient(lock);
 }
 
 template <typename Interface, typename Impl>
@@ -479,14 +476,14 @@ struct ThreadContext
 //! over the stream. Also create a new Connection object embedded in the
 //! client that is freed when the client is closed.
 template <typename InitInterface>
-std::unique_ptr<ProxyClient<InitInterface>> ConnectStream(EventLoop& loop, int fd, bool add_client)
+std::unique_ptr<ProxyClient<InitInterface>> ConnectStream(EventLoop& loop, int fd)
 {
     typename InitInterface::Client init_client(nullptr);
     std::unique_ptr<Connection> connection;
     loop.sync([&] {
         auto stream =
             loop.m_io_context.lowLevelProvider->wrapSocketFd(fd, kj::LowLevelAsyncIoProvider::TAKE_OWNERSHIP);
-        connection = std::make_unique<Connection>(loop, kj::mv(stream), add_client);
+        connection = std::make_unique<Connection>(loop, kj::mv(stream));
         init_client = connection->m_rpc_system.bootstrap(ServerVatId().vat_id).castAs<InitInterface>();
         Connection* connection_ptr = connection.get();
         connection->onDisconnect([&loop, connection_ptr] {
@@ -506,9 +503,6 @@ std::unique_ptr<ProxyClient<InitInterface>> ConnectStream(EventLoop& loop, int f
 void ServeStream(EventLoop& loop,
     kj::Own<kj::AsyncIoStream>&& stream,
     std::function<capnp::Capability::Client(Connection&)> make_server);
-
-//! Same as above but accept file descriptor rather than stream object.
-void ServeStream(EventLoop& loop, int fd, std::function<capnp::Capability::Client(Connection&)> make_server);
 
 extern thread_local ThreadContext g_thread_context;
 

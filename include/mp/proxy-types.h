@@ -122,12 +122,12 @@ auto PassField(TypeList<>, ServerContext& server_context, const Fn& fn, const Ar
                 ServerContext server_context{server, call_context, req};
                 {
                     auto& request_threads = g_thread_context.request_threads;
-                    auto request_thread = request_threads.find(server.m_connection);
+                    auto request_thread = request_threads.find(&server.m_connection);
                     if (request_thread == request_threads.end()) {
                         request_thread =
                             g_thread_context.request_threads
-                                .emplace(std::piecewise_construct, std::forward_as_tuple(server.m_connection),
-                                    std::forward_as_tuple(context_arg.getCallbackThread(), server.m_connection,
+                                .emplace(std::piecewise_construct, std::forward_as_tuple(&server.m_connection),
+                                    std::forward_as_tuple(context_arg.getCallbackThread(), &server.m_connection,
                                         /* destroy_connection= */ false))
                                 .first;
                     } else {
@@ -139,13 +139,13 @@ auto PassField(TypeList<>, ServerContext& server_context, const Fn& fn, const Ar
                     fn.invoke(server_context, args...);
                 }
                 KJ_IF_MAYBE(exception, kj::runCatchingExceptions([&]() {
-                    server.m_connection->m_loop.sync([&] {
+                    server.m_connection.m_loop.sync([&] {
                         auto fulfiller_dispose = kj::mv(fulfiller);
                         fulfiller_dispose->fulfill(kj::mv(call_context));
                     });
                 }))
                 {
-                    server.m_connection->m_loop.sync([&]() {
+                    server.m_connection.m_loop.sync([&]() {
                         auto fulfiller_dispose = kj::mv(fulfiller);
                         fulfiller_dispose->reject(kj::mv(*exception));
                     });
@@ -153,19 +153,19 @@ auto PassField(TypeList<>, ServerContext& server_context, const Fn& fn, const Ar
             })));
 
     auto thread_client = context_arg.getThread();
-    return JoinPromises(server.m_connection->m_threads.getLocalServer(thread_client)
+    return JoinPromises(server.m_connection.m_threads.getLocalServer(thread_client)
                             .then([&server, invoke, req](kj::Maybe<Thread::Server&> perhaps) {
                                 KJ_IF_MAYBE(thread_server, perhaps)
                                 {
                                     const auto& thread = static_cast<ProxyServer<Thread>&>(*thread_server);
-                                    server.m_connection->m_loop.log() << "IPC server post request  #" << req << " {"
-                                                                      << thread.m_thread_context.thread_name << "}";
+                                    server.m_connection.m_loop.log() << "IPC server post request  #" << req << " {"
+                                                                     << thread.m_thread_context.thread_name << "}";
                                     thread.m_thread_context.waiter->post(std::move(invoke));
                                 }
                                 else
                                 {
-                                    server.m_connection->m_loop.log() << "IPC server error request #" << req
-                                                                      << ", missing thread to execute request";
+                                    server.m_connection.m_loop.log() << "IPC server error request #" << req
+                                                                     << ", missing thread to execute request";
                                     throw std::runtime_error("invalid thread handle");
                                 }
                             }),
@@ -1327,7 +1327,7 @@ void clientDestroy(Client& client)
 template <typename Server>
 void serverDestroy(Server& server)
 {
-    server.m_connection->m_loop.log() << "IPC server destroy" << typeid(server).name();
+    server.m_connection.m_loop.log() << "IPC server destroy" << typeid(server).name();
 }
 
 template <typename ProxyClient, typename GetRequest, typename... FieldObjs>
@@ -1418,8 +1418,8 @@ kj::Promise<void> serverInvoke(Server& server, CallContext& call_context, Fn fn)
     using Results = typename decltype(call_context.getResults())::Builds;
 
     int req = ++server_reqs;
-    server.m_connection->m_loop.log() << "IPC server recv request  #" << req << " "
-                                      << TypeName<typename Params::Reads>() << " " << LogEscape(params.toString());
+    server.m_connection.m_loop.log() << "IPC server recv request  #" << req << " "
+                                     << TypeName<typename Params::Reads>() << " " << LogEscape(params.toString());
 
     try {
         using ServerContext = ServerInvokeContext<Server, CallContext>;
@@ -1428,11 +1428,11 @@ kj::Promise<void> serverInvoke(Server& server, CallContext& call_context, Fn fn)
         return ReplaceVoid([&]() { return fn.invoke(server_context, ArgList()); },
             [&]() { return kj::Promise<CallContext>(kj::mv(call_context)); })
             .then([&server, req](CallContext call_context) {
-                server.m_connection->m_loop.log() << "IPC server send response #" << req << " " << TypeName<Results>()
-                                                  << " " << LogEscape(call_context.getResults().toString());
+                server.m_connection.m_loop.log() << "IPC server send response #" << req << " " << TypeName<Results>()
+                                                 << " " << LogEscape(call_context.getResults().toString());
             });
     } catch (...) {
-        server.m_connection->m_loop.log()
+        server.m_connection.m_loop.log()
             << "IPC server unhandled exception " << boost::current_exception_diagnostic_information();
         throw;
     }
