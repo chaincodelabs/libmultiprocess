@@ -5,6 +5,7 @@
 #ifndef MP_CONFIG_H
 #define MP_CONFIG_H
 
+#cmakedefine CMAKE_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 #cmakedefine capnp_PREFIX "@capnp_PREFIX@"
 
 #endif // MP_CONFIG_H
