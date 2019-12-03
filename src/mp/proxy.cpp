@@ -11,7 +11,6 @@
 
 #include <assert.h>
 #include <atomic>
-#include <boost/optional.hpp>
 #include <capnp/blob.h>
 #include <capnp/capability.h>
 #include <condition_variable>
