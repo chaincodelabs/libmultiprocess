@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <mp/config.h>
 #include <mp/util.h>
 
 #include <kj/array.h>
@@ -13,11 +14,16 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <thread>
 #include <unistd.h>
 
 #if __linux__
 #include <syscall.h>
 #endif
+
+#ifdef HAVE_PTHREAD_GETTHREADID_NP
+#include <pthread_np.h>
+#endif // HAVE_PTHREAD_GETTHREADID_NP
 
 namespace mp {
 namespace {
@@ -37,16 +43,28 @@ size_t MaxFd()
 
 std::string ThreadName(const char* exe_name)
 {
-    char thread_name[17] = {0};
+    char thread_name[16] = {0};
+#ifdef HAVE_PTHREAD_GETNAME_NP
     pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
-    uint64_t tid = 0;
-#if __linux__
-    tid = syscall(SYS_gettid);
-#else
-    pthread_threadid_np(NULL, &tid);
-#endif
+#endif // HAVE_PTHREAD_GETNAME_NP
+
     std::ostringstream buffer;
-    buffer << (exe_name ? exe_name : "") << "-" << getpid() << "/" << thread_name << "-" << tid;
+    buffer << (exe_name ? exe_name : "") << "-" << getpid() << "/" << thread_name << "-";
+
+    // Prefer platform specific thread ids over the standard C++11 ones because
+    // the former are shorter and are the same as what gdb prints "LWP ...".
+#if __linux__
+    buffer << syscall(SYS_gettid);
+#elif defined(HAVE_PTHREAD_THREADID_NP)
+    uint64_t tid = 0;
+    pthread_threadid_np(NULL, &tid);
+    buffer << tid;
+#elif defined(HAVE_PTHREAD_GETTHREADID_NP)
+    buffer << pthread_getthreadid_np();
+#else
+    buffer << std::this_thread::get_id();
+#endif
+
     return std::move(buffer.str());
 }
 
