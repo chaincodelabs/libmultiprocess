@@ -15,6 +15,7 @@
 #include <capnp/rpc-twoparty.h>
 
 #include <functional>
+#include <memory>
 #include <string>
 
 namespace mp {
@@ -199,7 +200,7 @@ public:
     LoggingErrorHandler m_error_handler{*this};
 
     //! Capnp list of pending promises.
-    boost::optional<kj::TaskSet> m_task_set;
+    std::unique_ptr<kj::TaskSet> m_task_set;
 
     //! List of connections.
     std::list<Connection> m_incoming_connections;
