@@ -5,12 +5,13 @@
 #include <mp/config.h>
 #include <mp/util.h>
 
-#include <boost/optional.hpp>
+#include <algorithm>
 #include <capnp/schema-parser.h>
 #include <fstream>
 #include <map>
 #include <set>
 #include <sstream>
+#include <unistd.h>
 #include <vector>
 
 #define PROXY_BIN "mpgen"
@@ -329,8 +330,10 @@ void Generate(kj::StringPtr src_prefix,
 
                 struct Field
                 {
-                    boost::optional<::capnp::StructSchema::Field> param;
-                    boost::optional<::capnp::StructSchema::Field> result;
+                    ::capnp::StructSchema::Field param;
+                    bool param_is_set = false;
+                    ::capnp::StructSchema::Field result;
+                    bool result_is_set = false;
                     int args = 0;
                     bool retval = false;
                     bool optional = false;
@@ -354,7 +357,13 @@ void Generate(kj::StringPtr src_prefix,
                         fields.emplace_back();
                     }
                     auto& field = fields[inserted.first->second];
-                    (param ? field.param : field.result) = schema_field;
+                    if (param) {
+                        field.param = schema_field;
+                        field.param_is_set = true;
+                    } else {
+                        field.result = schema_field;
+                        field.result_is_set = true;
+                    }
 
                     if (!param && field_name == "result") {
                         field.retval = true;
@@ -393,7 +402,7 @@ void Generate(kj::StringPtr src_prefix,
                         fields[field.second].optional = true;
                     }
                     auto want_field = field_idx.find("want" + Cap(field.first));
-                    if (want_field != field_idx.end() && fields[want_field->second].param) {
+                    if (want_field != field_idx.end() && fields[want_field->second].param_is_set) {
                         fields[want_field->second].skip = true;
                         fields[field.second].requested = true;
                     }
@@ -416,12 +425,12 @@ void Generate(kj::StringPtr src_prefix,
                 for (const auto& field : fields) {
                     if (field.skip) continue;
 
-                    auto field_name = field.param ? field.param->getProto().getName() :
-                                                    field.result ? field.result->getProto().getName() : "";
-                    auto field_type = field.param ? field.param->getType() : field.result->getType();
+                    const auto& f = field.param_is_set ? field.param : field.result;
+                    auto field_name = f.getProto().getName();
+                    auto field_type = f.getType();
 
                     std::ostringstream field_flags;
-                    field_flags << (!field.param ? "FIELD_OUT" : field.result ? "FIELD_IN | FIELD_OUT" : "FIELD_IN");
+                    field_flags << (!field.param_is_set ? "FIELD_OUT" : field.result_is_set ? "FIELD_IN | FIELD_OUT" : "FIELD_IN");
                     if (field.optional) field_flags << " | FIELD_OPTIONAL";
                     if (field.requested) field_flags << " | FIELD_REQUESTED";
                     if (BoxedType(field_type)) field_flags << " | FIELD_BOXED";
