@@ -11,7 +11,6 @@
 
 #include <assert.h>
 #include <atomic>
-#include <boost/optional.hpp>
 #include <capnp/blob.h>
 #include <capnp/capability.h>
 #include <condition_variable>
@@ -124,13 +123,16 @@ void Connection::addAsyncCleanup(std::function<void()> fn)
 }
 
 EventLoop::EventLoop(const char* exe_name, LogFn log_fn, void* context)
-    : m_exe_name(exe_name), m_io_context(kj::setupAsyncIo()), m_log_fn(std::move(log_fn)), m_context(context)
+    : m_exe_name(exe_name),
+      m_io_context(kj::setupAsyncIo()),
+      m_log_fn(std::move(log_fn)),
+      m_context(context),
+      m_task_set(new kj::TaskSet(m_error_handler))
 {
     int fds[2];
     KJ_SYSCALL(socketpair(AF_UNIX, SOCK_STREAM, 0, fds));
     m_wait_fd = fds[0];
     m_post_fd = fds[1];
-    m_task_set.emplace(m_error_handler);
 }
 
 EventLoop::~EventLoop()
