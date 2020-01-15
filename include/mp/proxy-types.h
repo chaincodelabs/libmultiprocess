@@ -955,22 +955,26 @@ void CustomBuildField(TypeList<LocalType> local_type,
 template <typename Accessor, typename LocalType, typename ServerContext, typename Fn, typename... Args>
 void PassField(TypeList<LocalType*>, ServerContext& server_context, const Fn& fn, Args&&... args)
 {
-    InvokeContext& invoke_context = server_context;
-    boost::optional<Decay<LocalType>> param;
     const auto& params = server_context.call_context.getParams();
     const auto& input = Make<StructField, Accessor>(params);
-    bool want = input.want();
-    if (want) {
-        MaybeReadField(std::integral_constant<bool, Accessor::in>(), TypeList<LocalType>(), invoke_context, input,
-            Emplace<decltype(param)>(param));
-        if (!param) param.emplace();
+
+    if (!input.want()) {
+        fn.invoke(server_context, std::forward<Args>(args)..., nullptr);
+        server_context.call_context.getResults();
+        return;
     }
-    fn.invoke(server_context, std::forward<Args>(args)..., param ? &*param : nullptr);
+
+    InvokeContext& invoke_context = server_context;
+    Decay<LocalType> param;
+
+    MaybeReadField(std::integral_constant<bool, Accessor::in>(), TypeList<LocalType>(), invoke_context, input,
+        Emplace<decltype(param)>(param));
+
+    fn.invoke(server_context, std::forward<Args>(args)..., &param);
+
     auto&& results = server_context.call_context.getResults();
-    if (want) {
-        MaybeBuildField(std::integral_constant<bool, Accessor::out>(), TypeList<LocalType>(), invoke_context,
-            Make<StructField, Accessor>(results), *param);
-    }
+    MaybeBuildField(std::integral_constant<bool, Accessor::out>(), TypeList<LocalType>(), invoke_context,
+        Make<StructField, Accessor>(results), param);
 }
 
 template <typename Accessor, typename LocalType, typename ServerContext, typename Fn, typename... Args>
