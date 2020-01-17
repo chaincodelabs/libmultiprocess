@@ -960,7 +960,6 @@ void PassField(TypeList<LocalType*>, ServerContext& server_context, const Fn& fn
 
     if (!input.want()) {
         fn.invoke(server_context, std::forward<Args>(args)..., nullptr);
-        server_context.call_context.getResults();
         return;
     }
 
