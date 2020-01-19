@@ -7,10 +7,12 @@
 
 #include <algorithm>
 #include <capnp/schema-parser.h>
+#include <errno.h>
 #include <fstream>
 #include <map>
 #include <set>
 #include <sstream>
+#include <system_error>
 #include <unistd.h>
 #include <vector>
 
@@ -137,6 +139,9 @@ void Generate(kj::StringPtr src_prefix,
     args.emplace_back("--output=" capnp_PREFIX "/bin/capnpc-c++");
     args.emplace_back(src_file);
     int pid = fork();
+    if (pid == -1) {
+        throw std::system_error(errno, std::system_category(), "fork");
+    }
     if (!pid) {
         mp::ExecProcess(args);
     }
