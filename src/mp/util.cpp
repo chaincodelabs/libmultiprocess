@@ -5,6 +5,7 @@
 #include <mp/config.h>
 #include <mp/util.h>
 
+#include <errno.h>
 #include <kj/array.h>
 #include <pthread.h>
 #include <sstream>
@@ -14,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <system_error>
 #include <thread>
 #include <unistd.h>
 
@@ -101,6 +103,9 @@ int SpawnProcess(int& pid, FdToArgsFn&& fd_to_args)
     }
 
     pid = fork();
+    if (pid == -1) {
+        throw std::system_error(errno, std::system_category(), "fork");
+    }
     if (close(fds[pid ? 0 : 1]) != 0) {
         throw std::system_error(errno, std::system_category());
     }
