@@ -51,7 +51,11 @@ std::string ThreadName(const char* exe_name)
 #endif // HAVE_PTHREAD_GETNAME_NP
 
     std::ostringstream buffer;
-    buffer << (exe_name ? exe_name : "") << "-" << getpid() << "/" << thread_name << "-";
+    buffer << (exe_name ? exe_name : "") << "-" << getpid() << "/";
+
+    if (thread_name[0] != '\0') {
+        buffer << thread_name << "-";
+    }
 
     // Prefer platform specific thread ids over the standard C++11 ones because
     // the former are shorter and are the same as what gdb prints "LWP ...".
