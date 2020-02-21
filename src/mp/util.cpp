@@ -99,7 +99,7 @@ int SpawnProcess(int& pid, FdToArgsFn&& fd_to_args)
 {
     int fds[2];
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) != 0) {
-        throw std::system_error(errno, std::system_category());
+        throw std::system_error(errno, std::system_category(), "socketpair");
     }
 
     pid = fork();
@@ -107,7 +107,7 @@ int SpawnProcess(int& pid, FdToArgsFn&& fd_to_args)
         throw std::system_error(errno, std::system_category(), "fork");
     }
     if (close(fds[pid ? 0 : 1]) != 0) {
-        throw std::system_error(errno, std::system_category());
+        throw std::system_error(errno, std::system_category(), "close");
     }
     if (!pid) {
         int maxFd = MaxFd();
@@ -138,7 +138,7 @@ int WaitProcess(int pid)
 {
     int status;
     if (::waitpid(pid, &status, 0 /* options */) != pid) {
-        throw std::system_error(errno, std::system_category());
+        throw std::system_error(errno, std::system_category(), "waitpid");
     }
     return status;
 }
