@@ -8,8 +8,10 @@ include(CMakePushCheckState)
 include(CTest)
 include(CheckCXXSourceCompiles)
 find_package(Boost)
-find_package(CapnProto)
+find_package(CapnProto REQUIRED)
 find_package(Threads REQUIRED)
+
+include("cmake/capnp_compat.cmake")
 
 cmake_push_check_state()
 set(CMAKE_REQUIRED_LIBRARIES Threads::Threads)
@@ -73,8 +75,11 @@ install(TARGETS multiprocess EXPORT Multiprocess ARCHIVE DESTINATION lib PUBLIC_
 add_executable(mpgen src/mp/gen.cpp)
 target_include_directories(mpgen PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
 target_include_directories(mpgen PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
+target_link_libraries(mpgen PRIVATE CapnProto::capnp)
 target_link_libraries(mpgen PRIVATE CapnProto::capnp-rpc)
-target_link_libraries(mpgen PRIVATE -L${capnp_LIBRARY_DIRS} capnpc)
+target_link_libraries(mpgen PRIVATE CapnProto::capnpc)
+target_link_libraries(mpgen PRIVATE CapnProto::kj)
+target_link_libraries(mpgen PRIVATE Threads::Threads)
 target_link_libraries(mpgen PRIVATE multiprocess)
 set_target_properties(mpgen PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH TRUE
@@ -89,7 +94,7 @@ install(FILES "include/mpgen.mk" DESTINATION "include")
 
 install(EXPORT Multiprocess DESTINATION lib/cmake/Multiprocess)
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND TARGET CapnProto::kj-test)
   add_custom_command(
     OUTPUT
       src/mp/test/foo.capnp.h
@@ -122,8 +127,12 @@ if(BUILD_TESTING)
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>
   )
+  target_link_libraries(mptest PRIVATE CapnProto::capnp)
   target_link_libraries(mptest PRIVATE CapnProto::capnp-rpc)
+  target_link_libraries(mptest PRIVATE CapnProto::kj)
+  target_link_libraries(mptest PRIVATE CapnProto::kj-async)
   target_link_libraries(mptest PRIVATE CapnProto::kj-test)
+  target_link_libraries(mptest PRIVATE Threads::Threads)
   target_link_libraries(mptest PRIVATE multiprocess)
   set_target_properties(mptest PROPERTIES
     CXX_STANDARD 14

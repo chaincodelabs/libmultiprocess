@@ -550,10 +550,16 @@ int main(int argc, char** argv)
         exit(1);
     }
     std::vector<kj::StringPtr> import_paths;
+#ifdef HAVE_KJ_FILESYSTEM
     auto fs = kj::newDiskFilesystem();
     auto cwd = fs->getCurrentPath();
+#endif
     for (const char* path : {CMAKE_INSTALL_PREFIX "/include", capnp_PREFIX "/include"}) {
+#ifdef HAVE_KJ_FILESYSTEM
         KJ_IF_MAYBE(dir, fs->getRoot().tryOpenSubdir(cwd.evalNative(path))) { import_paths.emplace_back(path); }
+#else
+        import_paths.emplace_back(path);
+#endif
     }
     for (size_t i = 4; i < argc; ++i) {
         import_paths.push_back(argv[i]);
