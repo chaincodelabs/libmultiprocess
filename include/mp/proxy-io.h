@@ -14,6 +14,7 @@
 #include <boost/optional/optional.hpp>
 #include <capnp/rpc-twoparty.h>
 
+#include <assert.h>
 #include <functional>
 #include <memory>
 #include <string>
