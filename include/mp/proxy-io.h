@@ -10,13 +10,13 @@
 
 #include <mp/proxy.capnp.h>
 
-#include <boost/exception/diagnostic_information.hpp>
-#include <boost/optional/optional.hpp>
 #include <capnp/rpc-twoparty.h>
 
 #include <assert.h>
 #include <functional>
+#include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 
 namespace mp {

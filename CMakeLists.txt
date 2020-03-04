@@ -7,7 +7,6 @@ project("Libmultiprocess" CXX)
 include(CMakePushCheckState)
 include(CTest)
 include(CheckCXXSourceCompiles)
-find_package(Boost)
 find_package(CapnProto REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -64,8 +63,7 @@ target_include_directories(multiprocess PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:include>
-  ${CAPNP_INCLUDE_DIRECTORY}
-  ${Boost_INCLUDE_DIR})
+  ${CAPNP_INCLUDE_DIRECTORY})
 set_target_properties(multiprocess PROPERTIES
     PUBLIC_HEADER "${MP_PUBLIC_HEADERS}"
     CXX_STANDARD 17
