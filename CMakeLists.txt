@@ -7,7 +7,6 @@ project("Libmultiprocess" CXX)
 include(CMakePushCheckState)
 include(CTest)
 include(CheckCXXSourceCompiles)
-find_package(Boost)
 find_package(CapnProto REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -64,11 +63,10 @@ target_include_directories(multiprocess PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:include>
-  ${CAPNP_INCLUDE_DIRECTORY}
-  ${Boost_INCLUDE_DIR})
+  ${CAPNP_INCLUDE_DIRECTORY})
 set_target_properties(multiprocess PROPERTIES
     PUBLIC_HEADER "${MP_PUBLIC_HEADERS}"
-    CXX_STANDARD 14
+    CXX_STANDARD 17
     CXX_STANDARD_REQUIRED YES)
 install(TARGETS multiprocess EXPORT Multiprocess ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include/mp)
 
@@ -83,7 +81,7 @@ target_link_libraries(mpgen PRIVATE Threads::Threads)
 target_link_libraries(mpgen PRIVATE multiprocess)
 set_target_properties(mpgen PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH TRUE
-    CXX_STANDARD 14
+    CXX_STANDARD 17
     CXX_STANDARD_REQUIRED YES)
 install(TARGETS mpgen EXPORT Multiprocess RUNTIME DESTINATION bin)
 
@@ -135,7 +133,7 @@ if(BUILD_TESTING AND TARGET CapnProto::kj-test)
   target_link_libraries(mptest PRIVATE Threads::Threads)
   target_link_libraries(mptest PRIVATE multiprocess)
   set_target_properties(mptest PROPERTIES
-    CXX_STANDARD 14
+    CXX_STANDARD 17
     CXX_STANDARD_REQUIRED YES)
   add_test(NAME mptest COMMAND mptest)
 endif()

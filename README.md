@@ -29,12 +29,12 @@ _libmultiprocess_ is currently compatible with sandboxing but could add platform
 
 ## Installation
 
-Installation currently requires boost[*] and Cap'n Proto:
+Installation currently requires Cap'n Proto:
 
 ```sh
-apt install libboost-dev libcapnp-dev capnproto
-brew install boost capnp
-dnf install boost-devel capnproto
+apt install libcapnp-dev capnproto
+brew install capnp
+dnf install capnproto
 
 Installation steps are:
 
@@ -46,5 +46,3 @@ make
 make all test
 make install
 ```
-
-[*] The boost dependency should be eliminated; it is solely for `boost::optional`.

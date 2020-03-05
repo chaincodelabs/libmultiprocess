@@ -6,6 +6,9 @@
 #define MP_PROXY_TYPES_H
 
 #include <mp/proxy-io.h>
+
+#include <exception>
+#include <optional>
 #include <set>
 #include <vector>
 
@@ -178,7 +181,7 @@ class Emplace
     Value& m_value;
 
     template <typename T, typename... Params>
-    static T& call(boost::optional<T>& value, Params&&... params)
+    static T& call(std::optional<T>& value, Params&&... params)
     {
         value.emplace(std::forward<Params>(params)...);
         return *value;
@@ -227,7 +230,7 @@ public:
 };
 
 template <typename LocalType, typename Input, typename DestValue>
-void ReadFieldUpdate(TypeList<boost::optional<LocalType>>,
+void ReadFieldUpdate(TypeList<std::optional<LocalType>>,
     InvokeContext& invoke_context,
     Input&& input,
     DestValue&& value)
@@ -832,7 +835,7 @@ LocalType BuildPrimitive(InvokeContext& invoke_context,
 }
 
 template <typename LocalType, typename Value, typename Output>
-void CustomBuildField(TypeList<boost::optional<LocalType>>,
+void CustomBuildField(TypeList<std::optional<LocalType>>,
     Priority<1>,
     InvokeContext& invoke_context,
     Value&& value,
@@ -1038,7 +1041,7 @@ template <typename Accessor, typename LocalType, typename ServerContext, typenam
 void DefaultPassField(TypeList<LocalType>, ServerContext& server_context, Fn&& fn, Args&&... args)
 {
     InvokeContext& invoke_context = server_context;
-    boost::optional<Decay<LocalType>> param;
+    std::optional<Decay<LocalType>> param;
     const auto& params = server_context.call_context.getParams();
     MaybeReadField(std::integral_constant<bool, Accessor::in>(), TypeList<LocalType>(), invoke_context,
         Make<StructField, Accessor>(params), Emplace<decltype(param)>(param));
@@ -1434,9 +1437,11 @@ kj::Promise<void> serverInvoke(Server& server, CallContext& call_context, Fn fn)
                 server.m_connection.m_loop.log() << "IPC server send response #" << req << " " << TypeName<Results>()
                                                  << " " << LogEscape(call_context.getResults().toString());
             });
+    } catch (const std::exception& e) {
+        server.m_connection.m_loop.log() << "IPC server unhandled exception: " << e.what();
+        throw;
     } catch (...) {
-        server.m_connection.m_loop.log()
-            << "IPC server unhandled exception " << boost::current_exception_diagnostic_information();
+        server.m_connection.m_loop.log() << "IPC server unhandled exception";
         throw;
     }
 }
