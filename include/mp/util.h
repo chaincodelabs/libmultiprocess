@@ -203,7 +203,7 @@ template <typename Exception>
 struct ThrowFn
 {
     template <typename... Params>
-    void operator()(Params&&... params)
+    Exception& operator()(Params&&... params)
     {
         throw Exception(std::forward<Params>(params)...);
     }
@@ -237,6 +237,10 @@ struct Split<index, TypeList<Type, _Second...>, TypeList<_First...>, false>
 //! Type helper giving return type of a callable type.
 template <typename Callable>
 using ResultOf = decltype(std::declval<Callable>()());
+
+//! Substitutue for std::remove_cvref_t
+template <typename T>
+using RemoveCvRef = std::remove_cv_t<std::remove_reference_t<T>>;
 
 //! Type helper abbreviating std::decay.
 template <typename T>
