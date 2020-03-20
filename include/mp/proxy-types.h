@@ -175,257 +175,292 @@ auto PassField(TypeList<>, ServerContext& server_context, const Fn& fn, const Ar
         kj::mv(future.promise));
 }
 
+template <typename LocalType, typename EmplaceFn>
+struct ReadDestEmplace
+{
+    ReadDestEmplace(TypeList<LocalType>, EmplaceFn&& emplace_fn) : m_emplace_fn(emplace_fn) {}
+
+    template <typename... Args>
+    auto& construct(Args&&... args)
+    {
+        return m_emplace_fn(std::forward<Args>(args)...);
+    }
+
+    template <typename UpdateFn>
+    void update(UpdateFn&& update_fn)
+    {
+        update(std::forward<UpdateFn>(update_fn), Priority<1>());
+    }
+
+    template <typename UpdateFn,
+        typename Enable =
+            std::enable_if_t<!std::is_const_v<std::remove_reference_t<std::invoke_result_t<EmplaceFn>>>, UpdateFn>>
+    void update(UpdateFn&& update_fn, Priority<1>)
+    {
+        update_fn(construct());
+    }
+
+    template <typename UpdateFn>
+    void update(UpdateFn&& update_fn, Priority<0>)
+    {
+        std::remove_cv_t<LocalType> temp;
+        update_fn(temp);
+        construct(std::move(temp));
+    }
+
+    EmplaceFn& m_emplace_fn;
+};
+
 template <typename Value>
-class Emplace
+struct ReadDestValue
 {
+    ReadDestValue(Value& value) : m_value(value) {}
+
+    template <typename UpdateFn>
+    void update(UpdateFn&& update_fn)
+    {
+        update_fn(m_value);
+    }
+
+    template <typename... Args>
+    Value& construct(Args&&... args)
+    {
+        m_value.~Value();
+        new (&m_value) Value(std::forward<Args>(args)...);
+        return m_value;
+    }
+
     Value& m_value;
-
-    template <typename T, typename... Params>
-    static T& call(std::optional<T>& value, Params&&... params)
-    {
-        value.emplace(std::forward<Params>(params)...);
-        return *value;
-    }
-
-    template <typename T, typename... Params>
-    static T& call(std::vector<T>& value, Params&&... params)
-    {
-        value.emplace_back(std::forward<Params>(params)...);
-        return value.back();
-    }
-
-    template <typename T, typename... Params>
-    static const T& call(std::set<T>& value, Params&&... params)
-    {
-        return *value.emplace(std::forward<Params>(params)...).first;
-    }
-
-    template <typename K, typename V, typename... Params>
-    static std::pair<const K, V>& call(std::map<K, V>& value, Params&&... params)
-    {
-        return *value.emplace(std::forward<Params>(params)...).first;
-    }
-
-    template <typename T, typename... Params>
-    static T& call(std::shared_ptr<T>& value, Params&&... params)
-    {
-        value = std::make_shared<T>(std::forward<Params>(params)...);
-        return *value;
-    }
-
-    template <typename T, typename... Params>
-    static T& call(std::reference_wrapper<T>& value, Params&&... params)
-    {
-        value.get().~T();
-        new (&value.get()) T(std::forward<Params>(params)...);
-        return value.get();
-    }
-
-public:
-    Emplace(Value& value) : m_value(value) {}
-
-    // Needs to be declared after m_value for compiler to understand declaration.
-    template <typename... Params>
-    auto operator()(Params&&... params) -> AUTO_RETURN(Emplace::call(this->m_value, std::forward<Params>(params)...))
 };
 
-template <typename LocalType, typename Input, typename DestValue>
-void ReadFieldUpdate(TypeList<std::optional<LocalType>>,
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::optional<LocalType>>,
     InvokeContext& invoke_context,
     Input&& input,
-    DestValue&& value)
+    ReadDest&& read_dest)
 {
-    if (!input.has()) {
-        value.reset();
-        return;
-    }
-    if (value) {
-        ReadFieldUpdate(TypeList<LocalType>(), invoke_context, input, *value);
-    } else {
-        ReadField(TypeList<LocalType>(), invoke_context, input, Emplace<DestValue>(value));
-    }
-}
-
-template <typename LocalType, typename Input, typename DestValue>
-void ReadFieldUpdate(TypeList<std::shared_ptr<LocalType>>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    DestValue&& value)
-{
-    if (!input.has()) {
-        value.reset();
-        return;
-    }
-    if (value) {
-        ReadFieldUpdate(TypeList<LocalType>(), invoke_context, input, *value);
-    } else {
-        ReadField(TypeList<LocalType>(), invoke_context, input, Emplace<DestValue>(value));
-    }
-}
-
-template <typename LocalType, typename Input, typename DestValue>
-void ReadFieldUpdate(TypeList<LocalType*>, InvokeContext& invoke_context, Input&& input, DestValue&& value)
-{
-    if (value) {
-        ReadFieldUpdate(TypeList<LocalType>(), invoke_context, std::forward<Input>(input), *value);
-    }
-}
-
-template <typename LocalType, typename Input, typename DestValue>
-void ReadFieldUpdate(TypeList<std::shared_ptr<const LocalType>>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    DestValue&& value)
-{
-    if (!input.has()) {
-        value.reset();
-        return;
-    }
-    ReadField(TypeList<LocalType>(), invoke_context, std::forward<Input>(input), Emplace<DestValue>(value));
-}
-
-template <typename LocalType, typename Input, typename DestValue>
-void ReadFieldUpdate(TypeList<std::vector<LocalType>>, InvokeContext& invoke_context, Input&& input, DestValue&& value)
-{
-    auto data = input.get();
-    value.clear();
-    value.reserve(data.size());
-    for (auto item : data) {
-        ReadField(TypeList<LocalType>(), invoke_context, Make<ValueField>(item), Emplace<DestValue>(value));
-    }
-}
-
-template <typename LocalType, typename Input, typename DestValue>
-void ReadFieldUpdate(TypeList<std::set<LocalType>>, InvokeContext& invoke_context, Input&& input, DestValue&& value)
-{
-    auto data = input.get();
-    value.clear();
-    for (auto item : data) {
-        ReadField(TypeList<LocalType>(), invoke_context, Make<ValueField>(item), Emplace<DestValue>(value));
-    }
-}
-
-template <typename KeyLocalType, typename ValueLocalType, typename Input, typename DestValue>
-void ReadFieldUpdate(TypeList<std::map<KeyLocalType, ValueLocalType>>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    DestValue&& value)
-{
-    auto data = input.get();
-    value.clear();
-    for (auto item : data) {
-        ReadField(TypeList<std::pair<KeyLocalType, ValueLocalType>>(), invoke_context, Make<ValueField>(item),
-            Emplace<DestValue>(value));
-    }
-}
-
-// Emplace function that when called with tuple of key constructor arguments
-// reads value from pair and calls piecewise construct.
-template <typename ValueLocalType, typename Input, typename Emplace>
-struct PairValueEmplace
-{
-    InvokeContext& m_context;
-    Input& m_input;
-    Emplace& m_emplace;
-    template <typename KeyTuple>
-
-    // FIXME Should really return reference to emplaced key object.
-    void operator()(KeyTuple&& key_tuple)
-    {
-        const auto& pair = m_input.get();
-        using ValueAccessor = typename ProxyStruct<typename Decay<decltype(pair)>::Reads>::ValueAccessor;
-        ReadField(TypeList<ValueLocalType>(), m_context, Make<StructField, ValueAccessor>(pair),
-            BindTuple(Make<ComposeFn>(GetFn<1>(), Bind(m_emplace, std::piecewise_construct, key_tuple))));
-    }
-};
-
-template <typename KeyLocalType, typename ValueLocalType, typename Input, typename Emplace>
-void ReadFieldNew(TypeList<std::pair<KeyLocalType, ValueLocalType>>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    Emplace&& emplace)
-{
-    /* This could be simplified a lot with c++14 generic lambdas. All it is doing is:
-    ReadField(TypeList<KeyLocalType>(), invoke_context, Make<ValueField>(input.get().getKey()), [&](auto&&... key_args)
-    { ReadField(TypeList<ValueLocalType>(), invoke_context, Make<ValueField>(input.get().getValue()), [&](auto&&...
-    value_args)
-    {
-            emplace(std::piecewise_construct, std::forward_as_tuple(key_args...),
-    std::forward_as_tuple(value_args...));
-        })
+    return read_dest.update([&](auto& value) {
+        if (!input.has()) {
+            value.reset();
+        } else if (value) {
+            ReadField(TypeList<LocalType>(), invoke_context, input, ReadDestValue(*value));
+        } else {
+            ReadField(TypeList<LocalType>(), invoke_context, input,
+                ReadDestEmplace(TypeList<LocalType>(), [&](auto&&... args) -> auto& {
+                    value.emplace(std::forward<decltype(args)>(args)...);
+                    return *value;
+                }));
+        }
     });
-    */
+}
+
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::shared_ptr<LocalType>>,
+    InvokeContext& invoke_context,
+    Input&& input,
+    ReadDest&& read_dest)
+{
+    return read_dest.update([&](auto& value) {
+        if (!input.has()) {
+            value.reset();
+        } else if (value) {
+            ReadField(TypeList<LocalType>(), invoke_context, input, ReadDestValue(*value));
+        } else {
+            ReadField(TypeList<LocalType>(), invoke_context, input,
+                ReadDestEmplace(TypeList<LocalType>(), [&](auto&&... args) -> auto& {
+                    value = std::make_shared<LocalType>(std::forward<decltype(args)>(args)...);
+                    return *value;
+                }));
+        }
+    });
+}
+
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<LocalType*>,
+    InvokeContext& invoke_context,
+    Input&& input,
+    ReadDest&& read_dest)
+{
+    return read_dest.update([&](auto& value) {
+        if (value) {
+            ReadField(TypeList<LocalType>(), invoke_context, std::forward<Input>(input), ReadDestValue(*value));
+        }
+    });
+}
+
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::shared_ptr<const LocalType>>,
+    InvokeContext& invoke_context,
+    Input&& input,
+    ReadDest&& read_dest)
+{
+    return read_dest.update([&](auto& value) {
+        if (!input.has()) {
+            value.reset();
+            return;
+        }
+        ReadField(TypeList<LocalType>(), invoke_context, std::forward<Input>(input),
+            ReadDestEmplace(TypeList<LocalType>(), [&](auto&&... args) -> auto& {
+                value = std::make_shared<LocalType>(std::forward<decltype(args)>(args)...);
+                return *value;
+            }));
+    });
+}
+
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::vector<LocalType>>,
+    InvokeContext& invoke_context,
+    Input&& input,
+    ReadDest&& read_dest)
+{
+    return read_dest.update([&](auto& value) {
+        auto data = input.get();
+        value.clear();
+        value.reserve(data.size());
+        for (auto item : data) {
+            ReadField(TypeList<LocalType>(), invoke_context, Make<ValueField>(item),
+                ReadDestEmplace(TypeList<LocalType>(), [&](auto&&... args) -> auto& {
+                    value.emplace_back(std::forward<decltype(args)>(args)...);
+                    return value.back();
+                }));
+        }
+    });
+}
+
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::set<LocalType>>,
+    InvokeContext& invoke_context,
+    Input&& input,
+    ReadDest&& read_dest)
+{
+    return read_dest.update([&](auto& value) {
+        auto data = input.get();
+        value.clear();
+        for (auto item : data) {
+            ReadField(TypeList<LocalType>(), invoke_context, Make<ValueField>(item),
+                ReadDestEmplace(TypeList<const LocalType>(), [&](auto&&... args) -> auto& {
+                    return *value.emplace(std::forward<decltype(args)>(args)...).first;
+                }));
+        }
+    });
+}
+
+template <typename KeyLocalType, typename ValueLocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::map<KeyLocalType, ValueLocalType>>,
+    InvokeContext& invoke_context,
+    Input&& input,
+    ReadDest&& read_dest)
+{
+    return read_dest.update([&](auto& value) {
+        auto data = input.get();
+        value.clear();
+        for (auto item : data) {
+            ReadField(TypeList<std::pair<const KeyLocalType, ValueLocalType>>(), invoke_context,
+                Make<ValueField>(item),
+                ReadDestEmplace(
+                    TypeList<std::pair<const KeyLocalType, ValueLocalType>>(), [&](auto&&... args) -> auto& {
+                        return *value.emplace(std::forward<decltype(args)>(args)...).first;
+                    }));
+        }
+    });
+}
+
+template <typename KeyLocalType, typename ValueLocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::pair<KeyLocalType, ValueLocalType>>,
+    InvokeContext& invoke_context,
+    Input&& input,
+    ReadDest&& read_dest)
+{
     const auto& pair = input.get();
     using KeyAccessor = typename ProxyStruct<typename Decay<decltype(pair)>::Reads>::KeyAccessor;
+    using ValueAccessor = typename ProxyStruct<typename Decay<decltype(pair)>::Reads>::ValueAccessor;
+
     ReadField(TypeList<KeyLocalType>(), invoke_context, Make<StructField, KeyAccessor>(pair),
-        BindTuple(PairValueEmplace<ValueLocalType, Input, Emplace>{invoke_context, input, emplace}));
+        ReadDestEmplace(TypeList<KeyLocalType>(), [&](auto&&... key_args) -> auto& {
+            KeyLocalType* key = nullptr;
+            ReadField(TypeList<ValueLocalType>(), invoke_context, Make<StructField, ValueAccessor>(pair),
+                ReadDestEmplace(TypeList<ValueLocalType>(), [&](auto&&... value_args) -> auto& {
+                    auto& ret = read_dest.construct(std::piecewise_construct, std::forward_as_tuple(key_args...),
+                        std::forward_as_tuple(value_args...));
+                    key = &ret.first;
+                    return ret.second;
+                }));
+            return *key;
+        }));
 }
 
-template <typename KeyLocalType, typename ValueLocalType, typename Input, typename Tuple>
-void ReadFieldUpdate(TypeList<std::tuple<KeyLocalType, ValueLocalType>>,
+template <typename KeyLocalType, typename ValueLocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::tuple<KeyLocalType, ValueLocalType>>,
     InvokeContext& invoke_context,
     Input&& input,
-    Tuple&& tuple)
+    ReadDest&& read_dest)
 {
-    const auto& pair = input.get();
-    using Struct = ProxyStruct<typename Decay<decltype(pair)>::Reads>;
-    ReadFieldUpdate(TypeList<KeyLocalType>(), invoke_context, Make<StructField, typename Struct::KeyAccessor>(pair),
-        std::get<0>(tuple));
-    ReadFieldUpdate(TypeList<ValueLocalType>(), invoke_context,
-        Make<StructField, typename Struct::ValueAccessor>(pair), std::get<1>(tuple));
+    return read_dest.update([&](auto& value) {
+        const auto& pair = input.get();
+        using Struct = ProxyStruct<typename Decay<decltype(pair)>::Reads>;
+        ReadField(TypeList<KeyLocalType>(), invoke_context, Make<StructField, typename Struct::KeyAccessor>(pair),
+            ReadDestValue(std::get<0>(value)));
+        ReadField(TypeList<ValueLocalType>(), invoke_context, Make<StructField, typename Struct::ValueAccessor>(pair),
+            ReadDestValue(std::get<1>(value)));
+    });
 }
 
-template <typename LocalType, typename Input, typename Emplace>
-void ReadFieldNew(TypeList<LocalType>,
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<LocalType>,
     InvokeContext& invoke_context,
     Input&& input,
-    Emplace&& emplace,
+    ReadDest&& read_dest,
     typename std::enable_if<std::is_enum<LocalType>::value>::type* enable = 0)
 {
-    emplace(static_cast<LocalType>(input.get()));
+    return read_dest.construct(static_cast<LocalType>(input.get()));
 }
 
-template <typename LocalType, typename Input, typename Emplace>
-void ReadFieldNew(TypeList<LocalType>,
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<LocalType>,
     InvokeContext& invoke_context,
     Input&& input,
-    Emplace&& emplace,
+    ReadDest&& read_dest,
     typename std::enable_if<std::is_integral<LocalType>::value>::type* enable = 0)
 {
     auto value = input.get();
     if (value < std::numeric_limits<LocalType>::min() || value > std::numeric_limits<LocalType>::max()) {
         throw std::range_error("out of bound int received");
     }
-    emplace(static_cast<LocalType>(value));
+    return read_dest.construct(static_cast<LocalType>(value));
 }
 
-template <typename LocalType, typename Input, typename Emplace>
-void ReadFieldNew(TypeList<LocalType>,
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<LocalType>,
     InvokeContext& invoke_context,
     Input&& input,
-    Emplace&& emplace,
+    ReadDest&& read_dest,
     typename std::enable_if<std::is_floating_point<LocalType>::value>::type* enable = 0)
 {
     auto value = input.get();
     static_assert(std::is_same<LocalType, decltype(value)>::value, "floating point type mismatch");
-    emplace(value);
+    return read_dest.construct(value);
 }
 
-template <typename Input, typename Emplace>
-void ReadFieldNew(TypeList<std::string>, InvokeContext& invoke_context, Input&& input, Emplace&& emplace)
-{
-    auto data = input.get();
-    emplace(CharCast(data.begin()), data.size());
-}
-
-template <typename Input, size_t size>
-void ReadFieldUpdate(TypeList<unsigned char*>,
+template <typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::string>,
     InvokeContext& invoke_context,
     Input&& input,
-    unsigned char (&value)[size])
+    ReadDest&& read_dest)
 {
     auto data = input.get();
-    memcpy(value, data.begin(), size);
+    return read_dest.construct(CharCast(data.begin()), data.size());
+}
+
+template <size_t size, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<unsigned char[size]>,
+    InvokeContext& invoke_context,
+    Input&& input,
+    ReadDest&& read_dest)
+{
+    return read_dest.update([&](auto& value) {
+        auto data = input.get();
+        memcpy(value, data.begin(), size);
+    });
 }
 
 template <typename Interface, typename Impl>
@@ -441,17 +476,19 @@ std::unique_ptr<Impl> CustomMakeProxyClient(InvokeContext& context, typename Int
     return MakeProxyClient<Interface, Impl>(context, kj::mv(client));
 }
 
-template <typename LocalType, typename Input, typename Emplace>
-void ReadFieldNew(TypeList<std::unique_ptr<LocalType>>,
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::unique_ptr<LocalType>>,
     InvokeContext& invoke_context,
     Input&& input,
-    Emplace&& emplace,
+    ReadDest&& read_dest,
     typename Decay<decltype(input.get())>::Calls* enable = nullptr)
 {
     using Interface = typename Decay<decltype(input.get())>::Calls;
     if (input.has()) {
-        emplace(CustomMakeProxyClient<Interface, LocalType>(invoke_context, std::move(input.get())));
+        return read_dest.construct(
+            CustomMakeProxyClient<Interface, LocalType>(invoke_context, std::move(input.get())));
     }
+    return read_dest.construct();
 }
 
 // ProxyCallFn class is needed because c++11 doesn't support auto lambda parameters.
@@ -466,33 +503,20 @@ struct ProxyCallFn
     auto operator()(CallParams&&... params) -> AUTO_RETURN(this->m_proxy->call(std::forward<CallParams>(params)...))
 };
 
-template <typename FnR, typename... FnParams, typename Input, typename Emplace>
-void ReadFieldNew(TypeList<std::function<FnR(FnParams...)>>,
+template <typename FnR, typename... FnParams, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::function<FnR(FnParams...)>>,
     InvokeContext& invoke_context,
     Input&& input,
-    Emplace&& emplace)
+    ReadDest&& read_dest)
 {
     if (input.has()) {
         using Interface = typename Decay<decltype(input.get())>::Calls;
         auto client = std::make_shared<ProxyClient<Interface>>(
             input.get(), &invoke_context.connection, /* destroy_connection= */ false);
-        emplace(ProxyCallFn<decltype(client)>{std::move(client)});
+        return read_dest.construct(ProxyCallFn<decltype(client)>{std::move(client)});
     }
+    return read_dest.construct();
 };
-
-template <typename LocalType, typename Input, typename Value>
-void ReadFieldUpdate(TypeList<LocalType>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    Value&& value,
-    decltype(ReadFieldNew(TypeList<Decay<LocalType>>(),
-        invoke_context,
-        std::forward<Input>(input),
-        std::declval<Emplace<decltype(std::ref(value))>>()))* enable = nullptr)
-{
-    auto ref = std::ref(value);
-    ReadFieldNew(TypeList<Decay<LocalType>>(), invoke_context, input, Emplace<decltype(ref)>(ref));
-}
 
 template <size_t index, typename LocalType, typename Input, typename Value>
 void ReadOne(TypeList<LocalType> param,
@@ -506,8 +530,8 @@ void ReadOne(TypeList<LocalType> param,
     using Accessor = typename std::tuple_element<index, typename ProxyStruct<Struct>::Accessors>::type;
     const auto& struc = input.get();
     auto&& field_value = value.*ProxyType<LocalType>::get(Index());
-    ReadFieldUpdate(
-        TypeList<Decay<decltype(field_value)>>(), invoke_context, Make<StructField, Accessor>(struc), field_value);
+    ReadField(TypeList<RemoveCvRef<decltype(field_value)>>(), invoke_context, Make<StructField, Accessor>(struc),
+        ReadDestValue(field_value));
     ReadOne<index + 1>(param, invoke_context, input, value);
 }
 
@@ -520,66 +544,27 @@ void ReadOne(TypeList<LocalType> param,
 {
 }
 
-template <typename LocalType, typename Input, typename Value>
-void ReadFieldUpdate(TypeList<LocalType> param,
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<LocalType> param,
     InvokeContext& invoke_context,
     Input&& input,
-    Value&& value,
+    ReadDest&& read_dest,
     typename ProxyType<LocalType>::Struct* enable = nullptr)
 {
-    ReadOne<0>(param, invoke_context, input, value);
+    return read_dest.update([&](auto& value) { ReadOne<0>(param, invoke_context, input, value); });
 }
 
-// ReadField calling Emplace when ReadFieldNew is available.
-template <typename LocalType, typename Input, typename Emplace>
-void ReadFieldImpl(TypeList<LocalType>,
-    Priority<2>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    Emplace&& emplace,
-    decltype(
-        ReadFieldNew(TypeList<Decay<LocalType>>(), invoke_context, input, std::forward<Emplace>(emplace)))* enable =
-        nullptr)
+template <typename... LocalTypes, typename... Args>
+void ReadField(TypeList<LocalTypes...>, Args&&... args)
 {
-    ReadFieldNew(TypeList<Decay<LocalType>>(), invoke_context, input, std::forward<Emplace>(emplace));
-}
-
-// ReadField calling Emplace when ReadFieldNew is not available, and emplace creates non-const object.
-// Call emplace first to create empty value, then ReadFieldUpdate into the new object.
-template <typename LocalType, typename Input, typename Emplace>
-void ReadFieldImpl(TypeList<LocalType>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    Emplace&& emplace,
-    typename std::enable_if<!std::is_void<decltype(emplace())>::value &&
-                            !std::is_const<typename std::remove_reference<decltype(emplace())>::type>::value>::type*
-        enable = nullptr)
-{
-    auto&& ref = emplace();
-    ReadFieldUpdate(TypeList<Decay<LocalType>>(), invoke_context, input, ref);
-}
-
-// ReadField calling Emplace when ReadFieldNew is not available, and emplace creates const object.
-// Initialize temporary with ReadFieldUpdate then std::move into emplace.
-template <typename LocalType, typename Input, typename Emplace>
-void ReadFieldImpl(TypeList<LocalType>, Priority<0>, InvokeContext& invoke_context, Input&& input, Emplace&& emplace)
-{
-    Decay<LocalType> temp;
-    ReadFieldUpdate(TypeList<Decay<LocalType>>(), invoke_context, input, temp);
-    emplace(std::move(temp));
-}
-
-template <typename LocalTypes, typename Input, typename... Values>
-void ReadField(LocalTypes, InvokeContext& invoke_context, Input&& input, Values&&... values)
-{
-    ReadFieldImpl(LocalTypes(), Priority<2>(), invoke_context, input, std::forward<Values>(values)...);
+    CustomReadField(TypeList<RemoveCvRef<LocalTypes>...>(), std::forward<Args>(args)...);
 }
 
 template <typename LocalType, typename Input>
 void ThrowField(TypeList<LocalType>, InvokeContext& invoke_context, Input&& input)
 {
-    ReadField(TypeList<LocalType>(), invoke_context, input, ThrowFn<LocalType>());
+    ReadField(
+        TypeList<LocalType>(), invoke_context, input, ReadDestEmplace(TypeList<LocalType>(), ThrowFn<LocalType>()));
 }
 
 //! Special case for generic std::exception. It's an abstract type so it can't
@@ -970,7 +955,7 @@ void PassField(TypeList<LocalType*>, ServerContext& server_context, const Fn& fn
     Decay<LocalType> param;
 
     MaybeReadField(std::integral_constant<bool, Accessor::in>(), TypeList<LocalType>(), invoke_context, input,
-        Emplace<decltype(param)>(param));
+        ReadDestValue(param));
 
     fn.invoke(server_context, std::forward<Args>(args)..., &param);
 
@@ -1014,15 +999,6 @@ template <typename... Args>
 void MaybeReadField(std::false_type, Args&&...)
 {
 }
-template <typename... Args>
-void MaybeReadFieldUpdate(std::true_type, Args&&... args)
-{
-    ReadFieldUpdate(std::forward<Args>(args)...);
-}
-template <typename... Args>
-void MaybeReadFieldUpdate(std::false_type, Args&&...)
-{
-}
 
 template <typename LocalType, typename Value, typename Output>
 void MaybeSetWant(TypeList<LocalType*>, Priority<1>, Value&& value, Output&& output)
@@ -1041,10 +1017,14 @@ template <typename Accessor, typename LocalType, typename ServerContext, typenam
 void DefaultPassField(TypeList<LocalType>, ServerContext& server_context, Fn&& fn, Args&&... args)
 {
     InvokeContext& invoke_context = server_context;
-    std::optional<Decay<LocalType>> param;
+    using ArgType = RemoveCvRef<LocalType>;
+    std::optional<ArgType> param;
     const auto& params = server_context.call_context.getParams();
-    MaybeReadField(std::integral_constant<bool, Accessor::in>(), TypeList<LocalType>(), invoke_context,
-        Make<StructField, Accessor>(params), Emplace<decltype(param)>(param));
+    MaybeReadField(std::integral_constant<bool, Accessor::in>(), TypeList<ArgType>(), invoke_context,
+        Make<StructField, Accessor>(params), ReadDestEmplace(TypeList<ArgType>(), [&](auto&&... args) -> auto& {
+            param.emplace(std::forward<decltype(args)>(args)...);
+            return *param;
+        }));
     if (!param) param.emplace();
     fn.invoke(server_context, std::forward<Args>(args)..., static_cast<LocalType&&>(*param));
     auto&& results = server_context.call_context.getResults();
@@ -1072,7 +1052,7 @@ void CustomBuildField(TypeList<>,
 }
 
 template <typename Input>
-void ReadFieldUpdate(TypeList<>,
+decltype(auto) CustomReadField(TypeList<>,
     InvokeContext& invoke_context,
     Input&& input,
     typename std::enable_if<std::is_same<decltype(input.get()), ThreadMap::Client>::value>::type* enable = nullptr)
@@ -1086,7 +1066,7 @@ auto PassField(TypeList<>, ServerContext& server_context, const Fn& fn, Args&&..
 {
     const auto& params = server_context.call_context.getParams();
     const auto& input = Make<StructField, Accessor>(params);
-    ReadFieldUpdate(TypeList<>(), server_context, input);
+    ReadField(TypeList<>(), server_context, input);
     fn.invoke(server_context, std::forward<Args>(args)...);
     auto&& results = server_context.call_context.getResults();
     BuildField(TypeList<>(), server_context, Make<StructField, Accessor>(results));
@@ -1204,8 +1184,8 @@ struct ClientParam
         auto callRead(ClientInvokeContext& invoke_context, Results& results, TypeList<Params...>, Values&&... values)
             -> typename std::enable_if<I == sizeof...(Types)>::type
         {
-            MaybeReadFieldUpdate(std::integral_constant<bool, Accessor::out>(), TypeList<Decay<Params>...>(),
-                invoke_context, Make<StructField, Accessor>(results), std::forward<Values>(values)...);
+            MaybeReadField(std::integral_constant<bool, Accessor::out>(), TypeList<Decay<Params>...>(), invoke_context,
+                Make<StructField, Accessor>(results), ReadDestValue(values)...);
         }
 
         ReadResults(ClientParam* client_param) : m_client_param(client_param) {}
