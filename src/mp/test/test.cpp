@@ -46,6 +46,14 @@ KJ_TEST("Call FooInterface methods")
     FooStruct out = foo->pass(in);
     KJ_EXPECT(in.name == out.name);
 
+    FooStruct err;
+    try {
+        foo->raise(in);
+    } catch (const FooStruct& e) {
+        err = e;
+    }
+    KJ_EXPECT(in.name == err.name);
+
     disconnect_client();
     thread.join();
 }

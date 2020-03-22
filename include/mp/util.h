@@ -203,7 +203,7 @@ template <typename Exception>
 struct ThrowFn
 {
     template <typename... Params>
-    Exception& operator()(Params&&... params)
+    const Exception& operator()(Params&&... params)
     {
         throw Exception(std::forward<Params>(params)...);
     }
