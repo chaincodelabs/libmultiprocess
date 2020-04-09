@@ -18,6 +18,8 @@ interface FooInterface $Proxy.wrap("mp::test::FooImplementation") {
     callback @5 (context :Proxy.Context, callback :FooCallback, arg: Int32) -> (result :Int32);
     callbackUnique @6 (context :Proxy.Context, callback :FooCallback, arg: Int32) -> (result :Int32);
     callbackShared @7 (context :Proxy.Context, callback :FooCallback, arg: Int32) -> (result :Int32);
+    saveCallback @8 (context :Proxy.Context, callback :FooCallback) -> ();
+    callbackSaved @9 (context :Proxy.Context, arg: Int32) -> (result :Int32);
 }
 
 interface FooCallback $Proxy.wrap("mp::test::FooCallback") {

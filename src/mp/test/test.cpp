@@ -71,6 +71,14 @@ KJ_TEST("Call FooInterface methods")
     KJ_EXPECT(foo->callback(callback, 1) == 2);
     KJ_EXPECT(foo->callbackUnique(std::make_unique<Callback>(3, 4), 3) == 4);
     KJ_EXPECT(foo->callbackShared(std::make_shared<Callback>(5, 6), 5) == 6);
+    auto saved = std::make_shared<Callback>(7, 8);
+    KJ_EXPECT(saved.use_count() == 1);
+    foo->saveCallback(saved);
+    // Fails: KJ_EXPECT(saved.use_count() == 2);
+    foo->callbackSaved(7);
+    KJ_EXPECT(foo->callbackSaved(7) == 8);
+    foo->saveCallback(nullptr);
+    KJ_EXPECT(saved.use_count() == 1);
 
     disconnect_client();
     thread.join();
