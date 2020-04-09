@@ -257,7 +257,7 @@ decltype(auto) CustomReadField(TypeList<std::optional<LocalType>>,
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::shared_ptr<LocalType>>,
-    Priority<1>,
+    Priority<0>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -501,6 +501,22 @@ decltype(auto) CustomReadField(TypeList<std::unique_ptr<LocalType>>,
     using Interface = typename Decay<decltype(input.get())>::Calls;
     if (input.has()) {
         return read_dest.construct(
+                                   CustomMakeProxyClient<Interface, LocalType>(invoke_context, std::move(input.get())));
+    }
+    return read_dest.construct();
+}
+
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::shared_ptr<LocalType>>,
+    Priority<1>,
+    InvokeContext& invoke_context,
+    Input&& input,
+    ReadDest&& read_dest,
+    typename Decay<decltype(input.get())>::Calls* enable = nullptr)
+{
+    using Interface = typename Decay<decltype(input.get())>::Calls;
+    if (input.has()) {
+        return read_dest.construct(
             CustomMakeProxyClient<Interface, LocalType>(invoke_context, std::move(input.get())));
     }
     return read_dest.construct();
@@ -675,9 +691,29 @@ kj::Own<typename Interface::Server> CustomMakeProxyServer(InvokeContext& context
     return MakeProxyServer<Interface, Impl>(context, std::move(impl));
 }
 
+template <typename Interface, typename Impl>
+kj::Own<typename Interface::Server> CustomMakeProxyServer(InvokeContext& context, std::shared_ptr<Impl>&& impl)
+{
+    return kj::heap<ProxyServer<Interface>>(impl.get(), false /* owned */, context.connection);
+}
+
 template <typename Impl, typename Value, typename Output>
 void CustomBuildField(TypeList<std::unique_ptr<Impl>>,
     Priority<1>,
+    InvokeContext& invoke_context,
+    Value&& value,
+    Output&& output,
+    typename Decay<decltype(output.get())>::Calls* enable = nullptr)
+{
+    if (value) {
+        using Interface = typename decltype(output.get())::Calls;
+        output.set(CustomMakeProxyServer<Interface, Impl>(invoke_context, std::move(value)));
+    }
+}
+
+template <typename Impl, typename Value, typename Output>
+void CustomBuildField(TypeList<std::shared_ptr<Impl>>,
+    Priority<2>,
     InvokeContext& invoke_context,
     Value&& value,
     Output&& output,

@@ -17,6 +17,7 @@ interface FooInterface $Proxy.wrap("mp::test::FooImplementation") {
     initThreadMap @4 (threadMap: Proxy.ThreadMap) -> (threadMap :Proxy.ThreadMap);
     callback @5 (context :Proxy.Context, callback :FooCallback, arg: Int32) -> (result :Int32);
     callbackUnique @6 (context :Proxy.Context, callback :FooCallback, arg: Int32) -> (result :Int32);
+    callbackShared @7 (context :Proxy.Context, callback :FooCallback, arg: Int32) -> (result :Int32);
 }
 
 interface FooCallback $Proxy.wrap("mp::test::FooCallback") {

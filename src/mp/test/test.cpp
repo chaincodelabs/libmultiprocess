@@ -70,6 +70,7 @@ KJ_TEST("Call FooInterface methods")
     Callback callback(1, 2);
     KJ_EXPECT(foo->callback(callback, 1) == 2);
     KJ_EXPECT(foo->callbackUnique(std::make_unique<Callback>(3, 4), 3) == 4);
+    KJ_EXPECT(foo->callbackShared(std::make_shared<Callback>(5, 6), 5) == 6);
 
     disconnect_client();
     thread.join();
