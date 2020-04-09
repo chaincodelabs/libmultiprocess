@@ -20,7 +20,7 @@ KJ_TEST("Call FooInterface methods")
     std::promise<std::unique_ptr<ProxyClient<messages::FooInterface>>> foo_promise;
     std::function<void()> disconnect_client;
     std::thread thread([&]() {
-        EventLoop loop("mptest", [](bool raise, const std::string& log) {});
+        EventLoop loop("mptest", [](bool raise, const std::string& log) { printf("LOG%i: %s\n", raise, log.c_str()); });
         auto pipe = loop.m_io_context.provider->newTwoWayPipe();
 
         auto connection_client = std::make_unique<Connection>(loop, kj::mv(pipe.ends[0]));
@@ -53,6 +53,21 @@ KJ_TEST("Call FooInterface methods")
         err = e;
     }
     KJ_EXPECT(in.name == err.name);
+
+    class Callback : public FooCallback
+    {
+    public:
+        Callback(int expect, int ret) : m_expect(expect), m_ret(ret) {}
+        int call(int arg) override
+        {
+            KJ_EXPECT(arg == m_expect);
+            return m_ret;
+        }
+        int m_expect, m_ret;
+    };
+
+    foo->initThreadMap();
+    KJ_EXPECT(foo->callback(std::make_unique<Callback>(1, 2), 1) == 2);
 
     disconnect_client();
     thread.join();

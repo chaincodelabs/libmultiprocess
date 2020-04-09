@@ -14,6 +14,13 @@ interface FooInterface $Proxy.wrap("mp::test::FooImplementation") {
     mapSize @1 (map :List(Pair(Text, Text))) -> (result :Int32);
     pass @2 (arg :FooStruct) -> (result :FooStruct);
     raise @3 (arg :FooStruct) -> (error :FooStruct $Proxy.exception("mp::test::FooStruct"));
+    initThreadMap @4 (threadMap: Proxy.ThreadMap) -> (threadMap :Proxy.ThreadMap);
+    callback @5 (context :Proxy.Context, callback :FooCallback, arg: Int32) -> (result :Int32);
+}
+
+interface FooCallback $Proxy.wrap("mp::test::FooCallback") {
+    destroy @0 (context :Proxy.Context) -> ();
+    call @1 (context :Proxy.Context, arg :Int32) -> (result :Int32);
 }
 
 struct FooStruct $Proxy.wrap("mp::test::FooStruct") {

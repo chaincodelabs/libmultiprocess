@@ -19,6 +19,13 @@ struct FooStruct
     std::vector<int> num_set;
 };
 
+class FooCallback
+{
+public:
+    virtual ~FooCallback() = default;
+    virtual int call(int arg) = 0;
+};
+
 class FooImplementation
 {
 public:
@@ -26,6 +33,8 @@ public:
     int mapSize(const std::map<std::string, std::string>& map) { return map.size(); }
     FooStruct pass(FooStruct foo) { return foo; }
     void raise(FooStruct foo) { throw foo; }
+    void initThreadMap() {}
+    int callback(std::unique_ptr<FooCallback> callback, int arg) { return callback->call(arg); }
 };
 
 } // namespace test
