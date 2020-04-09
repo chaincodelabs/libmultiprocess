@@ -977,7 +977,7 @@ auto PassField(TypeList<LocalType&>, ServerContext& server_context, Fn&& fn, Arg
     const auto& params = server_context.call_context.getParams();
     const auto& input = Make<StructField, Accessor>(params);
     using Interface = typename Decay<decltype(input.get())>::Calls;
-    auto param = std::make_unique<ProxyClient<Interface>>(input.get(), *server_context.proxy_server.m_connection);
+    auto param = std::make_unique<ProxyClient<Interface>>(input.get(), &server_context.proxy_server.m_connection, false);
     fn.invoke(server_context, std::forward<Args>(args)..., *param);
 }
 

@@ -67,7 +67,9 @@ KJ_TEST("Call FooInterface methods")
     };
 
     foo->initThreadMap();
-    KJ_EXPECT(foo->callback(std::make_unique<Callback>(1, 2), 1) == 2);
+    Callback callback(1, 2);
+    KJ_EXPECT(foo->callback(callback, 1) == 2);
+    KJ_EXPECT(foo->callbackUnique(std::make_unique<Callback>(3, 4), 3) == 4);
 
     disconnect_client();
     thread.join();

@@ -34,7 +34,8 @@ public:
     FooStruct pass(FooStruct foo) { return foo; }
     void raise(FooStruct foo) { throw foo; }
     void initThreadMap() {}
-    int callback(std::unique_ptr<FooCallback> callback, int arg) { return callback->call(arg); }
+    int callback(FooCallback& callback, int arg) { return callback.call(arg); }
+    int callbackUnique(std::unique_ptr<FooCallback> callback, int arg) { return callback->call(arg); }
 };
 
 } // namespace test
