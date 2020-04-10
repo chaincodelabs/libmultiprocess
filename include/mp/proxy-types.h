@@ -235,6 +235,7 @@ struct ReadDestValue
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::optional<LocalType>>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -256,6 +257,7 @@ decltype(auto) CustomReadField(TypeList<std::optional<LocalType>>,
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::shared_ptr<LocalType>>,
+    Priority<0>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -277,6 +279,7 @@ decltype(auto) CustomReadField(TypeList<std::shared_ptr<LocalType>>,
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<LocalType*>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -290,6 +293,7 @@ decltype(auto) CustomReadField(TypeList<LocalType*>,
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::shared_ptr<const LocalType>>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -309,6 +313,7 @@ decltype(auto) CustomReadField(TypeList<std::shared_ptr<const LocalType>>,
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::vector<LocalType>>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -329,6 +334,7 @@ decltype(auto) CustomReadField(TypeList<std::vector<LocalType>>,
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::set<LocalType>>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -347,6 +353,7 @@ decltype(auto) CustomReadField(TypeList<std::set<LocalType>>,
 
 template <typename KeyLocalType, typename ValueLocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::map<KeyLocalType, ValueLocalType>>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -367,6 +374,7 @@ decltype(auto) CustomReadField(TypeList<std::map<KeyLocalType, ValueLocalType>>,
 
 template <typename KeyLocalType, typename ValueLocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::pair<KeyLocalType, ValueLocalType>>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -391,6 +399,7 @@ decltype(auto) CustomReadField(TypeList<std::pair<KeyLocalType, ValueLocalType>>
 
 template <typename KeyLocalType, typename ValueLocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::tuple<KeyLocalType, ValueLocalType>>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -407,6 +416,7 @@ decltype(auto) CustomReadField(TypeList<std::tuple<KeyLocalType, ValueLocalType>
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<LocalType>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest,
@@ -417,6 +427,7 @@ decltype(auto) CustomReadField(TypeList<LocalType>,
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<LocalType>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest,
@@ -431,6 +442,7 @@ decltype(auto) CustomReadField(TypeList<LocalType>,
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<LocalType>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest,
@@ -443,6 +455,7 @@ decltype(auto) CustomReadField(TypeList<LocalType>,
 
 template <typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::string>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -453,6 +466,7 @@ decltype(auto) CustomReadField(TypeList<std::string>,
 
 template <size_t size, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<unsigned char[size]>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -478,6 +492,23 @@ std::unique_ptr<Impl> CustomMakeProxyClient(InvokeContext& context, typename Int
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::unique_ptr<LocalType>>,
+    Priority<1>,
+    InvokeContext& invoke_context,
+    Input&& input,
+    ReadDest&& read_dest,
+    typename Decay<decltype(input.get())>::Calls* enable = nullptr)
+{
+    using Interface = typename Decay<decltype(input.get())>::Calls;
+    if (input.has()) {
+        return read_dest.construct(
+                                   CustomMakeProxyClient<Interface, LocalType>(invoke_context, std::move(input.get())));
+    }
+    return read_dest.construct();
+}
+
+template <typename LocalType, typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::shared_ptr<LocalType>>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest,
@@ -505,6 +536,7 @@ struct ProxyCallFn
 
 template <typename FnR, typename... FnParams, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::function<FnR(FnParams...)>>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest)
@@ -546,6 +578,7 @@ void ReadOne(TypeList<LocalType> param,
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<LocalType> param,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest,
@@ -557,7 +590,7 @@ decltype(auto) CustomReadField(TypeList<LocalType> param,
 template <typename... LocalTypes, typename... Args>
 void ReadField(TypeList<LocalTypes...>, Args&&... args)
 {
-    CustomReadField(TypeList<RemoveCvRef<LocalTypes>...>(), std::forward<Args>(args)...);
+    CustomReadField(TypeList<RemoveCvRef<LocalTypes>...>(), Priority<2>(), std::forward<Args>(args)...);
 }
 
 template <typename LocalType, typename Input>
@@ -642,18 +675,18 @@ void CustomBuildField(TypeList<std::function<FnR(FnParams...)>>,
         using Interface = typename decltype(output.get())::Calls;
         using Callback = ProxyCallbackImpl<FnR, FnParams...>;
         output.set(kj::heap<ProxyServer<Interface>>(
-            new Callback(std::forward<Value>(value)), true /* owned */, invoke_context.connection));
+            std::make_shared<Callback>(std::forward<Value>(value)), invoke_context.connection));
     }
 }
 
 template <typename Interface, typename Impl>
-kj::Own<typename Interface::Server> MakeProxyServer(InvokeContext& context, std::unique_ptr<Impl>&& impl)
+kj::Own<typename Interface::Server> MakeProxyServer(InvokeContext& context, std::shared_ptr<Impl> impl)
 {
-    return kj::heap<ProxyServer<Interface>>(impl.release(), true /* owned */, context.connection);
+    return kj::heap<ProxyServer<Interface>>(std::move(impl), context.connection);
 }
 
 template <typename Interface, typename Impl>
-kj::Own<typename Interface::Server> CustomMakeProxyServer(InvokeContext& context, std::unique_ptr<Impl>&& impl)
+kj::Own<typename Interface::Server> CustomMakeProxyServer(InvokeContext& context, std::shared_ptr<Impl>&& impl)
 {
     return MakeProxyServer<Interface, Impl>(context, std::move(impl));
 }
@@ -668,22 +701,37 @@ void CustomBuildField(TypeList<std::unique_ptr<Impl>>,
 {
     if (value) {
         using Interface = typename decltype(output.get())::Calls;
+        output.set(CustomMakeProxyServer<Interface, Impl>(invoke_context, std::shared_ptr<Impl>(value.release())));
+    }
+}
+
+template <typename Impl, typename Value, typename Output>
+void CustomBuildField(TypeList<std::shared_ptr<Impl>>,
+    Priority<2>,
+    InvokeContext& invoke_context,
+    Value&& value,
+    Output&& output,
+    typename Decay<decltype(output.get())>::Calls* enable = nullptr)
+{
+    if (value) {
+        using Interface = typename decltype(output.get())::Calls;
         output.set(CustomMakeProxyServer<Interface, Impl>(invoke_context, std::move(value)));
     }
 }
 
-template <typename LocalType, typename Output>
-void CustomBuildField(TypeList<LocalType&>,
+template <typename Impl, typename Output>
+void CustomBuildField(TypeList<Impl&>,
     Priority<1>,
     InvokeContext& invoke_context,
-    LocalType& value,
+    Impl& value,
     Output&& output,
     typename decltype(output.get())::Calls* enable = nullptr)
 {
-    // Set owned to false so proxy object doesn't attempt to delete interface
-    // reference when it is discarded remotely, or on disconnect.
-    output.set(kj::heap<ProxyServer<typename decltype(output.get())::Calls>>(
-        &value, false /* owned */, invoke_context.connection));
+    // Disable deleter so proxy server object doesn't attempt to delete the
+    // wrapped implementation when the proxy client is destroyed or
+    // disconnected.
+    using Interface = typename decltype(output.get())::Calls;
+    output.set(CustomMakeProxyServer<Interface, Impl>(invoke_context, std::shared_ptr<Impl>(&value, [](Impl*){})));
 }
 
 template <typename LocalType, typename Value, typename Output>
@@ -977,7 +1025,7 @@ auto PassField(TypeList<LocalType&>, ServerContext& server_context, Fn&& fn, Arg
     const auto& params = server_context.call_context.getParams();
     const auto& input = Make<StructField, Accessor>(params);
     using Interface = typename Decay<decltype(input.get())>::Calls;
-    auto param = std::make_unique<ProxyClient<Interface>>(input.get(), *server_context.proxy_server.m_connection);
+    auto param = std::make_unique<ProxyClient<Interface>>(input.get(), &server_context.proxy_server.m_connection, false);
     fn.invoke(server_context, std::forward<Args>(args)..., *param);
 }
 
@@ -1053,6 +1101,7 @@ void CustomBuildField(TypeList<>,
 
 template <typename Input>
 decltype(auto) CustomReadField(TypeList<>,
+    Priority<1>,
     InvokeContext& invoke_context,
     Input&& input,
     typename std::enable_if<std::is_same<decltype(input.get()), ThreadMap::Client>::value>::type* enable = nullptr)
@@ -1325,6 +1374,14 @@ void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, Fiel
     if (!g_thread_context.waiter) {
         assert(g_thread_context.thread_name.empty());
         g_thread_context.thread_name = ThreadName(proxy_client.m_connection->m_loop.m_exe_name);
+        // If next assert triggers, it means clientInvoke is being called from
+        // the capnp event loop thread. This can happen when a ProxyServer
+        // method implementation that runs synchronously on the event loop
+        // thread tries to make a blocking callback to the client. Any server
+        // method that makes a blocking callback or blocks in general needs to
+        // run asynchronously off the event loop thread. This is easy to fix by
+        // just adding a 'context :Proxy.Context' argument to the capnp method
+        // declaration so the server method runs in a dedicated thread.
         assert(!g_thread_context.loop_thread);
         g_thread_context.waiter = std::make_unique<Waiter>();
         proxy_client.m_connection->m_loop.logPlain()
