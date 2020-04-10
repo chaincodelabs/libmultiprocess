@@ -675,26 +675,20 @@ void CustomBuildField(TypeList<std::function<FnR(FnParams...)>>,
         using Interface = typename decltype(output.get())::Calls;
         using Callback = ProxyCallbackImpl<FnR, FnParams...>;
         output.set(kj::heap<ProxyServer<Interface>>(
-            new Callback(std::forward<Value>(value)), true /* owned */, invoke_context.connection));
+            std::make_shared<Callback>(std::forward<Value>(value)), invoke_context.connection));
     }
 }
 
 template <typename Interface, typename Impl>
-kj::Own<typename Interface::Server> MakeProxyServer(InvokeContext& context, std::unique_ptr<Impl>&& impl)
+kj::Own<typename Interface::Server> MakeProxyServer(InvokeContext& context, std::shared_ptr<Impl> impl)
 {
-    return kj::heap<ProxyServer<Interface>>(impl.release(), true /* owned */, context.connection);
-}
-
-template <typename Interface, typename Impl>
-kj::Own<typename Interface::Server> CustomMakeProxyServer(InvokeContext& context, std::unique_ptr<Impl>&& impl)
-{
-    return MakeProxyServer<Interface, Impl>(context, std::move(impl));
+    return kj::heap<ProxyServer<Interface>>(std::move(impl), context.connection);
 }
 
 template <typename Interface, typename Impl>
 kj::Own<typename Interface::Server> CustomMakeProxyServer(InvokeContext& context, std::shared_ptr<Impl>&& impl)
 {
-    return kj::heap<ProxyServer<Interface>>(impl.get(), false /* owned */, context.connection);
+    return MakeProxyServer<Interface, Impl>(context, std::move(impl));
 }
 
 template <typename Impl, typename Value, typename Output>
@@ -707,7 +701,7 @@ void CustomBuildField(TypeList<std::unique_ptr<Impl>>,
 {
     if (value) {
         using Interface = typename decltype(output.get())::Calls;
-        output.set(CustomMakeProxyServer<Interface, Impl>(invoke_context, std::move(value)));
+        output.set(CustomMakeProxyServer<Interface, Impl>(invoke_context, std::shared_ptr<Impl>(value.release())));
     }
 }
 
@@ -725,18 +719,19 @@ void CustomBuildField(TypeList<std::shared_ptr<Impl>>,
     }
 }
 
-template <typename LocalType, typename Output>
-void CustomBuildField(TypeList<LocalType&>,
+template <typename Impl, typename Output>
+void CustomBuildField(TypeList<Impl&>,
     Priority<1>,
     InvokeContext& invoke_context,
-    LocalType& value,
+    Impl& value,
     Output&& output,
     typename decltype(output.get())::Calls* enable = nullptr)
 {
-    // Set owned to false so proxy object doesn't attempt to delete interface
-    // reference when it is discarded remotely, or on disconnect.
-    output.set(kj::heap<ProxyServer<typename decltype(output.get())::Calls>>(
-        &value, false /* owned */, invoke_context.connection));
+    // Disable deleter so proxy server object doesn't attempt to delete the
+    // wrapped implementation when the proxy client is destroyed or
+    // disconnected.
+    using Interface = typename decltype(output.get())::Calls;
+    output.set(CustomMakeProxyServer<Interface, Impl>(invoke_context, std::shared_ptr<Impl>(&value, [](Impl*){})));
 }
 
 template <typename LocalType, typename Value, typename Output>

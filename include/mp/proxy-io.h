@@ -412,10 +412,10 @@ ProxyClientBase<Interface, Impl>::~ProxyClientBase() noexcept
 }
 
 template <typename Interface, typename Impl>
-ProxyServerBase<Interface, Impl>::ProxyServerBase(Impl* impl, bool owned, Connection& connection)
-    : m_impl(impl), m_owned(owned), m_connection(connection)
+ProxyServerBase<Interface, Impl>::ProxyServerBase(std::shared_ptr<Impl> impl, Connection& connection)
+    : m_impl(std::move(impl)), m_connection(connection)
 {
-    assert(impl != nullptr);
+    assert(m_impl);
     std::unique_lock<std::mutex> lock(m_connection.m_loop.m_mutex);
     m_connection.m_loop.addClient(lock);
 }
@@ -423,17 +423,14 @@ ProxyServerBase<Interface, Impl>::ProxyServerBase(Impl* impl, bool owned, Connec
 template <typename Interface, typename Impl>
 ProxyServerBase<Interface, Impl>::~ProxyServerBase()
 {
-    if (Impl* impl = m_impl) {
+    if (m_impl) {
         // If impl is non-null, it means client was not destroyed cleanly (was
         // killed or disconnected). Since client isn't providing thread to run
         // destructor on, run asynchronously. Do not run destructor on current
         // (event loop) thread since destructors could be making IPC calls or
         // doing expensive cleanup.
-        if (m_owned) {
-            m_connection.addAsyncCleanup([impl] { delete impl; });
-        }
-        m_impl = nullptr;
-        m_owned = false;
+        auto impl = std::move(m_impl);
+        m_connection.addAsyncCleanup([impl]() mutable { impl.reset(); });
     }
     std::unique_lock<std::mutex> lock(m_connection.m_loop.m_mutex);
     m_connection.m_loop.removeClient(lock);
@@ -442,9 +439,7 @@ ProxyServerBase<Interface, Impl>::~ProxyServerBase()
 template <typename Interface, typename Impl>
 void ProxyServerBase<Interface, Impl>::invokeDestroy()
 {
-    if (m_owned) delete m_impl;
-    m_impl = nullptr;
-    m_owned = false;
+    m_impl.reset();
 }
 
 struct ThreadContext
@@ -509,9 +504,10 @@ template <typename InitInterface, typename InitImpl>
 void _Serve(EventLoop& loop, kj::Own<kj::AsyncIoStream>&& stream, InitImpl& init)
 {
     loop.m_incoming_connections.emplace_front(loop, kj::mv(stream), [&](Connection& connection) {
-        // Set owned to false so proxy object doesn't attempt to delete init
-        // object on disconnect/close.
-        return kj::heap<mp::ProxyServer<InitInterface>>(&init, false, connection);
+        // Disable deleter so proxy server object doesn't attempt to delete the
+        // init implementation when the proxy client is destroyed or
+        // disconnected.
+        return kj::heap<ProxyServer<InitInterface>>(std::shared_ptr<InitImpl>(&init, [](InitImpl*){}), connection);
     });
     auto it = loop.m_incoming_connections.begin();
     it->onDisconnect([&loop, it] {

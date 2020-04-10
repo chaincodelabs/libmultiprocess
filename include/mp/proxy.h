@@ -82,16 +82,15 @@ public:
     using Interface = Interface_;
     using Impl = Impl_;
 
-    ProxyServerBase(Impl* impl, bool owned, Connection& connection);
+    ProxyServerBase(std::shared_ptr<Impl> impl, Connection& connection);
     virtual ~ProxyServerBase();
     void invokeDestroy();
 
-    Impl* m_impl;
     /**
-     * Whether or not to delete native interface pointer when this capnp server
-     * goes out of scope. This is true for servers created to wrap
-     * unique_ptr<Impl> method arguments, but false for servers created to wrap
-     * Impl& method arguments.
+     * Implementation pointer that may or may not be owned and deleted when this
+     * capnp server goes out of scope. It is owned for servers created to wrap
+     * unique_ptr<Impl> method arguments, but unowned for servers created to
+     * wrap Impl& method arguments.
      *
      * In the case of Impl& arguments, custom code is required on other side of
      * the connection to delete the capnp client & server objects since native
@@ -100,7 +99,7 @@ public:
      * this is implemented with addCloseHook callbacks to delete clients at
      * appropriate times depending on semantics of the particular method being
      * wrapped. */
-    bool m_owned;
+    std::shared_ptr<Impl> m_impl;
     Connection& m_connection;
 };
 
@@ -159,7 +158,7 @@ struct ProxyMethodTraits<MethodParams, Require<decltype(ProxyMethod<MethodParams
 {
     template <typename ServerContext, typename... Args>
     static auto invoke(ServerContext& server_context, Args&&... args) -> AUTO_RETURN(
-        (server_context.proxy_server.m_impl->*ProxyMethod<MethodParams>::impl)(std::forward<Args>(args)...))
+        (server_context.proxy_server.m_impl.get()->*ProxyMethod<MethodParams>::impl)(std::forward<Args>(args)...))
 };
 
 //! Customizable (through template specialization) traits class used in generated ProxyClient implementations from

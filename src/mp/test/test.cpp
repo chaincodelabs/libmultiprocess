@@ -31,7 +31,7 @@ KJ_TEST("Call FooInterface methods")
         disconnect_client = [&] { loop.sync([&] { connection_client.reset(); }); };
 
         auto connection_server = std::make_unique<Connection>(loop, kj::mv(pipe.ends[1]), [&](Connection& connection) {
-            auto foo_server = kj::heap<ProxyServer<messages::FooInterface>>(new FooImplementation, true, connection);
+            auto foo_server = kj::heap<ProxyServer<messages::FooInterface>>(std::make_shared<FooImplementation>(), connection);
             return capnp::Capability::Client(kj::mv(foo_server));
         });
         connection_server->onDisconnect([&] { connection_server.reset(); });
@@ -74,7 +74,7 @@ KJ_TEST("Call FooInterface methods")
     auto saved = std::make_shared<Callback>(7, 8);
     KJ_EXPECT(saved.use_count() == 1);
     foo->saveCallback(saved);
-    // Fails: KJ_EXPECT(saved.use_count() == 2);
+    KJ_EXPECT(saved.use_count() == 2);
     foo->callbackSaved(7);
     KJ_EXPECT(foo->callbackSaved(7) == 8);
     foo->saveCallback(nullptr);
