@@ -35,6 +35,7 @@ Installation currently requires Cap'n Proto:
 apt install libcapnp-dev capnproto
 brew install capnp
 dnf install capnproto
+```
 
 Installation steps are:
 
