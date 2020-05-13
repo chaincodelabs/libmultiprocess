@@ -19,7 +19,7 @@ There is also optional support for thread mapping, so each thread making interpr
 
 ## Example
 
-A simple interface description can be found at [src/mp/test/foo.capnp](src/mp/test/foo.capnp), implementation in [src/mp/test/foo.h](src/mp/test/foo.h), and usage in [src/mp/test/test.cpp](src/mp/test/test.cpp).
+A simple interface description can be found at [test/src/mp/test/foo.capnp](test/src/mp/test/foo.capnp), implementation in [test/src/mp/test/foo.h](test/src/mp/test/foo.h), and usage in [test/src/mp/test/test.cpp](test/src/mp/test/test.cpp).
 
 ## Future directions
 
@@ -44,6 +44,6 @@ mkdir build
 cd build
 cmake ..
 make
-make all test
+make check # Optionally build and run tests
 make install
 ```
