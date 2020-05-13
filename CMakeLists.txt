@@ -5,7 +5,6 @@
 cmake_minimum_required(VERSION 3.0)
 project("Libmultiprocess" CXX)
 include(CMakePushCheckState)
-include(CTest)
 include(CheckCXXSourceCompiles)
 find_package(CapnProto REQUIRED)
 find_package(Threads REQUIRED)
@@ -92,48 +91,4 @@ install(FILES "include/mpgen.mk" DESTINATION "include")
 
 install(EXPORT Multiprocess DESTINATION lib/cmake/Multiprocess)
 
-if(BUILD_TESTING AND TARGET CapnProto::kj-test)
-  add_custom_command(
-    OUTPUT
-      src/mp/test/foo.capnp.h
-      src/mp/test/foo.capnp.c++
-      src/mp/test/foo.capnp.proxy.h
-      src/mp/test/foo.capnp.proxy-server.c++
-      src/mp/test/foo.capnp.proxy-client.c++
-      src/mp/test/foo.capnp.proxy-types.c++
-      src/mp/test/foo.capnp.proxy-types.h
-    COMMAND mpgen "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/src/mp/test/foo.capnp" "${CMAKE_CURRENT_SOURCE_DIR}/include" "${capnp_PREFIX}/include"
-    DEPENDS src/mp/test/foo.capnp mpgen
-  )
-  add_executable(mptest EXCLUDE_FROM_ALL
-    ${MP_PROXY_HDRS}
-    src/mp/test/foo.capnp.h
-    src/mp/test/foo.capnp.c++
-    src/mp/test/foo.capnp.proxy.h
-    src/mp/test/foo.capnp.proxy-server.c++
-    src/mp/test/foo.capnp.proxy-client.c++
-    src/mp/test/foo.capnp.proxy-types.c++
-    src/mp/test/foo.capnp.proxy-types.h
-    src/mp/test/foo-types.h
-    src/mp/test/foo.h
-    src/mp/test/test.cpp
-  )
-  target_include_directories(mptest PUBLIC
-    ${CAPNP_INCLUDE_DIRECTORY}
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>
-  )
-  target_link_libraries(mptest PRIVATE CapnProto::capnp)
-  target_link_libraries(mptest PRIVATE CapnProto::capnp-rpc)
-  target_link_libraries(mptest PRIVATE CapnProto::kj)
-  target_link_libraries(mptest PRIVATE CapnProto::kj-async)
-  target_link_libraries(mptest PRIVATE CapnProto::kj-test)
-  target_link_libraries(mptest PRIVATE Threads::Threads)
-  target_link_libraries(mptest PRIVATE multiprocess)
-  set_target_properties(mptest PROPERTIES
-    CXX_STANDARD 17
-    CXX_STANDARD_REQUIRED YES)
-  add_test(NAME mptest COMMAND mptest)
-endif()
+add_subdirectory(test EXCLUDE_FROM_ALL)
