@@ -54,7 +54,7 @@ KJ_TEST("Call FooInterface methods")
     }
     KJ_EXPECT(in.name == err.name);
 
-    class Callback : public FooCallback
+    class Callback : public ExtendedCallback
     {
     public:
         Callback(int expect, int ret) : m_expect(expect), m_ret(ret) {}
@@ -62,6 +62,11 @@ KJ_TEST("Call FooInterface methods")
         {
             KJ_EXPECT(arg == m_expect);
             return m_ret;
+        }
+        int callExtended(int arg) override
+        {
+            KJ_EXPECT(arg == m_expect + 10);
+            return m_ret + 10;
         }
         int m_expect, m_ret;
     };
@@ -79,6 +84,7 @@ KJ_TEST("Call FooInterface methods")
     KJ_EXPECT(foo->callbackSaved(7) == 8);
     foo->saveCallback(nullptr);
     KJ_EXPECT(saved.use_count() == 1);
+    KJ_EXPECT(foo->callbackExtended(callback, 11) == 12);
 
     disconnect_client();
     thread.join();

@@ -26,6 +26,12 @@ public:
     virtual int call(int arg) = 0;
 };
 
+class ExtendedCallback : public FooCallback
+{
+public:
+    virtual int callExtended(int arg) = 0;
+};
+
 class FooImplementation
 {
 public:
@@ -39,6 +45,7 @@ public:
     int callbackShared(std::shared_ptr<FooCallback> callback, int arg) { return callback->call(arg); }
     void saveCallback(std::shared_ptr<FooCallback> callback) { m_callback = std::move(callback); }
     int callbackSaved(int arg) { return m_callback->call(arg); }
+    int callbackExtended(ExtendedCallback& callback, int arg) { return callback.callExtended(arg); }
     std::shared_ptr<FooCallback> m_callback;
 };
 

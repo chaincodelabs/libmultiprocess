@@ -62,6 +62,16 @@ static bool GetAnnotationInt32(const Reader& reader, uint64_t id, int32_t* resul
     return false;
 }
 
+void ForEachMethod(const capnp::InterfaceSchema& interface, const std::function<void(const capnp::InterfaceSchema& interface, const capnp::InterfaceSchema::Method)>& callback)
+{
+    for (const auto super : interface.getSuperclasses()) {
+        ForEachMethod(super, callback);
+    }
+    for (const auto method : interface.getMethods()) {
+        callback(interface, method);
+    }
+}
+
 using CharSlice = kj::ArrayPtr<const char>;
 
 // Overload for any type with a string .begin(), like kj::StringPtr and kj::ArrayPtr<char>.
@@ -323,12 +333,13 @@ void Generate(kj::StringPtr src_prefix,
             std::ostringstream client_construct;
             std::ostringstream client_destroy;
 
-            for (const auto method : interface.getMethods()) {
+            int method_ordinal = 0;
+            ForEachMethod(interface, [&] (const capnp::InterfaceSchema& method_interface, const capnp::InterfaceSchema::Method& method) {
                 kj::StringPtr method_name = method.getProto().getName();
                 kj::StringPtr proxied_method_name = method_name;
                 GetAnnotationText(method.getProto(), NAME_ANNOTATION_ID, &proxied_method_name);
 
-                const std::string method_prefix = Format() << message_namespace << "::" << node_name
+                const std::string method_prefix = Format() << message_namespace << "::" << method_interface.getShortDisplayName()
                                                            << "::" << Cap(method_name);
                 bool is_construct = method_name == "construct";
                 bool is_destroy = method_name == "destroy";
@@ -413,7 +424,7 @@ void Generate(kj::StringPtr src_prefix,
                     }
                 }
 
-                if (!is_construct && !is_destroy) {
+                if (!is_construct && !is_destroy && (&method_interface == &interface)) {
                     methods << "template<>\n";
                     methods << "struct ProxyMethod<" << method_prefix << "Params>\n";
                     methods << "{\n";
@@ -444,7 +455,7 @@ void Generate(kj::StringPtr src_prefix,
 
                     for (int i = 0; i < field.args; ++i) {
                         if (argc > 0) client_args << ",";
-                        client_args << "M" << method.getOrdinal() << "::Param<" << argc << "> " << field_name;
+                        client_args << "M" << method_ordinal << "::Param<" << argc << "> " << field_name;
                         if (field.args > 1) client_args << i;
                         ++argc;
                     }
@@ -481,16 +492,16 @@ void Generate(kj::StringPtr src_prefix,
                     server_invoke_end << ")";
                 }
 
-                client << "    using M" << method.getOrdinal() << " = ProxyClientMethodTraits<" << method_prefix
+                client << "    using M" << method_ordinal << " = ProxyClientMethodTraits<" << method_prefix
                        << "Params>;\n";
-                client << "    typename M" << method.getOrdinal() << "::Result " << method_name << "("
+                client << "    typename M" << method_ordinal << "::Result " << method_name << "("
                        << client_args.str() << ")";
                 client << ";\n";
-                def_client << "ProxyClient<" << message_namespace << "::" << node_name << ">::M" << method.getOrdinal()
+                def_client << "ProxyClient<" << message_namespace << "::" << node_name << ">::M" << method_ordinal
                            << "::Result ProxyClient<" << message_namespace << "::" << node_name << ">::" << method_name
                            << "(" << client_args.str() << ") {\n";
                 if (has_result) {
-                    def_client << "    typename M" << method.getOrdinal() << "::Result result;\n";
+                    def_client << "    typename M" << method_ordinal << "::Result result;\n";
                 }
                 def_client << "    clientInvoke(*this, &" << message_namespace << "::" << node_name
                            << "::Client::" << method_name << "Request" << client_invoke.str() << ");\n";
@@ -511,7 +522,8 @@ void Generate(kj::StringPtr src_prefix,
                     def_server << "ServerCall()";
                 }
                 def_server << server_invoke_end.str() << ");\n}\n";
-            }
+                ++method_ordinal;
+            });
 
             client << "};\n";
             server << "};\n";

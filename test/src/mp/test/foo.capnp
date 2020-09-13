@@ -20,11 +20,16 @@ interface FooInterface $Proxy.wrap("mp::test::FooImplementation") {
     callbackShared @7 (context :Proxy.Context, callback :FooCallback, arg: Int32) -> (result :Int32);
     saveCallback @8 (context :Proxy.Context, callback :FooCallback) -> ();
     callbackSaved @9 (context :Proxy.Context, arg: Int32) -> (result :Int32);
+    callbackExtended @10 (context :Proxy.Context, callback :ExtendedCallback, arg: Int32) -> (result :Int32);
 }
 
 interface FooCallback $Proxy.wrap("mp::test::FooCallback") {
     destroy @0 (context :Proxy.Context) -> ();
     call @1 (context :Proxy.Context, arg :Int32) -> (result :Int32);
+}
+
+interface ExtendedCallback extends(FooCallback) $Proxy.wrap("mp::test::ExtendedCallback") {
+    callExtended @0 (context :Proxy.Context, arg :Int32) -> (result :Int32);
 }
 
 struct FooStruct $Proxy.wrap("mp::test::FooStruct") {
