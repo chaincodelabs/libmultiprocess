@@ -201,6 +201,10 @@ void Generate(kj::StringPtr src_prefix,
     h << "#include <" << include_path << ".h>\n";
     h << "#include <" << include_base << ".h>\n";
     h << "#include <" << PROXY_DECL << ">\n\n";
+    h << "#if defined(__GNUC__) && !defined(__clang__)\n";
+    h << "#pragma GCC diagnostic push\n";
+    h << "#pragma GCC diagnostic ignored \"-Wsuggest-override\"\n";
+    h << "#endif\n";
     h << "namespace mp {\n";
 
     kj::StringPtr message_namespace;
@@ -552,6 +556,9 @@ void Generate(kj::StringPtr src_prefix,
     inl << "#endif\n";
 
     h << "} // namespace mp\n";
+    h << "#if defined(__GNUC__) && !defined(__clang__)\n";
+    h << "#pragma GCC diagnostic pop\n";
+    h << "#endif\n";
     h << "#endif\n";
 }
 
