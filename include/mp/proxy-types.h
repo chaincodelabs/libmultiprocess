@@ -189,25 +189,14 @@ struct ReadDestEmplace
     template <typename UpdateFn>
     void update(UpdateFn&& update_fn)
     {
-        update(std::forward<UpdateFn>(update_fn), Priority<1>());
+        if constexpr (std::is_const_v<std::remove_reference_t<std::invoke_result_t<EmplaceFn>>>) {
+            std::remove_cv_t<LocalType> temp;
+            update_fn(temp);
+            construct(std::move(temp));
+        } else {
+            update_fn(construct());
+        }
     }
-
-    template <typename UpdateFn,
-        typename Enable =
-            std::enable_if_t<!std::is_const_v<std::remove_reference_t<std::invoke_result_t<EmplaceFn>>>, UpdateFn>>
-    void update(UpdateFn&& update_fn, Priority<1>)
-    {
-        update_fn(construct());
-    }
-
-    template <typename UpdateFn>
-    void update(UpdateFn&& update_fn, Priority<0>)
-    {
-        std::remove_cv_t<LocalType> temp;
-        update_fn(temp);
-        construct(std::move(temp));
-    }
-
     EmplaceFn& m_emplace_fn;
 };
 
@@ -1073,7 +1062,11 @@ void DefaultPassField(TypeList<LocalType>, ServerContext& server_context, Fn&& f
             param.emplace(std::forward<decltype(args)>(args)...);
             return *param;
         }));
-    if (!param) param.emplace();
+    if constexpr (Accessor::in) {
+        assert(param);
+    } else {
+        if (!param) param.emplace();
+    }
     fn.invoke(server_context, std::forward<Args>(args)..., static_cast<LocalType&&>(*param));
     auto&& results = server_context.call_context.getResults();
     MaybeBuildField(std::integral_constant<bool, Accessor::out>(), TypeList<LocalType>(), invoke_context,
