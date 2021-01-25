@@ -532,6 +532,18 @@ void Generate(kj::StringPtr src_prefix,
             client << "};\n";
             server << "};\n";
             dec << "\n" << client.str() << "\n" << server.str() << "\n";
+            KJ_IF_MAYBE(bracket, proxied_class_type.findFirst('<')) {
+              // Skip ProxyType definition for complex type expressions which
+              // could lead to duplicate definitions. They can be defined
+              // manually if actually needed.
+            } else {
+              dec << "template<>\nstruct ProxyType<" << proxied_class_type << ">\n{\n";
+              dec << "    using Type = " << proxied_class_type << ";\n";
+              dec << "    using Message = " << message_namespace << "::" << node_name << ";\n";
+              dec << "    using Client = ProxyClient<Message>;\n";
+              dec << "    using Server = ProxyServer<Message>;\n";
+              dec << "};\n";
+            }
             def_types << "ProxyClient<" << message_namespace << "::" << node_name
                       << ">::~ProxyClient() { clientDestroy(*this); " << client_destroy.str() << " }\n";
             def_types << "ProxyServer<" << message_namespace << "::" << node_name
