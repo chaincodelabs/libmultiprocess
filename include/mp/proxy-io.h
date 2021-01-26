@@ -46,7 +46,7 @@ struct ServerInvokeContext : InvokeContext
     int req;
 
     ServerInvokeContext(ProxyServer& proxy_server, CallContext& call_context, int req)
-        : InvokeContext{proxy_server.m_connection}, proxy_server{proxy_server}, call_context{call_context}, req{req}
+        : InvokeContext{*proxy_server.m_context.connection}, proxy_server{proxy_server}, call_context{call_context}, req{req}
     {
     }
 };
@@ -350,22 +350,22 @@ template <typename Interface, typename Impl>
 ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client client,
     Connection* connection,
     bool destroy_connection)
-    : m_client(std::move(client)), m_connection(connection), m_destroy_connection(destroy_connection)
+    : m_client(std::move(client)), m_context(connection), m_destroy_connection(destroy_connection)
 {
     {
-        std::unique_lock<std::mutex> lock(m_connection->m_loop.m_mutex);
-        m_connection->m_loop.addClient(lock);
+        std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
+        m_context.connection->m_loop.addClient(lock);
     }
-    m_cleanup = m_connection->addSyncCleanup([this]() {
+    m_cleanup = m_context.connection->addSyncCleanup([this]() {
         // Release client capability by move-assigning to temporary.
         {
             typename Interface::Client(std::move(self().m_client));
         }
         {
-            std::unique_lock<std::mutex> lock(m_connection->m_loop.m_mutex);
-            m_connection->m_loop.removeClient(lock);
+            std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
+            m_context.connection->m_loop.removeClient(lock);
         }
-        m_connection = nullptr;
+        m_context.connection = nullptr;
     });
     self().construct();
 }
@@ -381,31 +381,31 @@ ProxyClientBase<Interface, Impl>::~ProxyClientBase() noexcept
     // - A garbage collection sequence where the connection or event loop shuts
     //   down while external code is still holding client references.
     //
-    // The first case is handled here in destructor when m_loop is not null. The
-    // second case is handled by the m_cleanup function, which sets m_connection to
+    // The first case is handled here when m_context.connection is not null. The
+    // second case is handled by the cleanup function, which sets m_context.connection to
     // null so nothing happens here.
-    if (m_connection) {
+    if (m_context.connection) {
         // Remove m_cleanup callback so it doesn't run and try to access
         // this object after it's already destroyed.
-        m_connection->removeSyncCleanup(m_cleanup);
+        m_context.connection->removeSyncCleanup(m_cleanup);
 
         // Destroy remote object, waiting for it to deleted server side.
         self().destroy();
 
         // FIXME: Could just invoke removed addCleanup fn here instead of duplicating code
-        m_connection->m_loop.sync([&]() {
+        m_context.connection->m_loop.sync([&]() {
             // Release client capability by move-assigning to temporary.
             {
                 typename Interface::Client(std::move(self().m_client));
             }
             {
-                std::unique_lock<std::mutex> lock(m_connection->m_loop.m_mutex);
-                m_connection->m_loop.removeClient(lock);
+                std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
+                m_context.connection->m_loop.removeClient(lock);
             }
 
             if (m_destroy_connection) {
-                delete m_connection;
-                m_connection = nullptr;
+                delete m_context.connection;
+                m_context.connection = nullptr;
             }
         });
     }
@@ -413,11 +413,11 @@ ProxyClientBase<Interface, Impl>::~ProxyClientBase() noexcept
 
 template <typename Interface, typename Impl>
 ProxyServerBase<Interface, Impl>::ProxyServerBase(std::shared_ptr<Impl> impl, Connection& connection)
-    : m_impl(std::move(impl)), m_connection(connection)
+    : m_impl(std::move(impl)), m_context(&connection)
 {
     assert(m_impl);
-    std::unique_lock<std::mutex> lock(m_connection.m_loop.m_mutex);
-    m_connection.m_loop.addClient(lock);
+    std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
+    m_context.connection->m_loop.addClient(lock);
 }
 
 template <typename Interface, typename Impl>
@@ -430,10 +430,10 @@ ProxyServerBase<Interface, Impl>::~ProxyServerBase()
         // (event loop) thread since destructors could be making IPC calls or
         // doing expensive cleanup.
         auto impl = std::move(m_impl);
-        m_connection.addAsyncCleanup([impl]() mutable { impl.reset(); });
+        m_context.connection->addAsyncCleanup([impl]() mutable { impl.reset(); });
     }
-    std::unique_lock<std::mutex> lock(m_connection.m_loop.m_mutex);
-    m_connection.m_loop.removeClient(lock);
+    std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
+    m_context.connection->m_loop.removeClient(lock);
 }
 
 template <typename Interface, typename Impl>
