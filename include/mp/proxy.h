@@ -43,6 +43,7 @@ using CleanupIt = typename CleanupList::iterator;
 struct ProxyContext
 {
     Connection* connection;
+    std::list<std::function<void()>> cleanup;
 
     ProxyContext(Connection* connection) : connection(connection) {}
 };
@@ -68,9 +69,6 @@ public:
 
     typename Interface::Client m_client;
     ProxyContext m_context;
-    bool m_destroy_connection;
-    CleanupIt m_cleanup; //!< Pointer to self-cleanup callback registered to handle connection object getting destroyed
-                         //!< before this client object.
 };
 
 //! Customizable (through template specialization) base class used in generated ProxyClient implementations from
