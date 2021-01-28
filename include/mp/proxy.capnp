@@ -7,6 +7,10 @@
 using Cxx = import "/capnp/c++.capnp";
 $Cxx.namespace("mp");
 
+annotation include(file): Text;
+annotation includeTypes(file): Text;
+# Extra include paths to add to generated files.
+
 annotation wrap(interface, struct): Text;
 # Wrap capnp interface generating ProxyClient / ProxyServer C++ classes that
 # forward calls to a C++ interface with same methods and parameters. Text
