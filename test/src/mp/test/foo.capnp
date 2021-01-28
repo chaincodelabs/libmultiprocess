@@ -8,6 +8,8 @@ using Cxx = import "/capnp/c++.capnp";
 $Cxx.namespace("mp::test::messages");
 
 using Proxy = import "/mp/proxy.capnp";
+$Proxy.include("mp/test/foo.h");
+$Proxy.includeTypes("mp/test/foo-types.h");
 
 interface FooInterface $Proxy.wrap("mp::test::FooImplementation") {
     add @0 (a :Int32, b :Int32) -> (result :Int32);

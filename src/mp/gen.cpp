@@ -21,6 +21,8 @@
 #define PROXY_TYPES "mp/proxy-types.h"
 
 constexpr uint64_t NAMESPACE_ANNOTATION_ID = 0xb9c6f99ebf805f2cull; // From c++.capnp
+constexpr uint64_t INCLUDE_ANNOTATION_ID = 0xb899f3c154fdb458ull;   // From proxy.capnp
+constexpr uint64_t INCLUDE_TYPES_ANNOTATION_ID = 0xbcec15648e8a0cf1ull; // From proxy.capnp
 constexpr uint64_t WRAP_ANNOTATION_ID = 0xe6f46079b7b1405eull;      // From proxy.capnp
 constexpr uint64_t COUNT_ANNOTATION_ID = 0xd02682b319f69b38ull;     // From proxy.capnp
 constexpr uint64_t EXCEPTION_ANNOTATION_ID = 0x996a183200992f88ull; // From proxy.capnp
@@ -191,7 +193,11 @@ void Generate(kj::StringPtr src_prefix,
     inl << "#ifndef " << guard << "_PROXY_TYPES_H\n";
     inl << "#define " << guard << "_PROXY_TYPES_H\n\n";
     inl << "#include <" << include_path << ".proxy.h>\n";
-    inl << "#include <" << include_base << "-types.h>\n\n";
+    for (const auto annotation : file_schema.getProto().getAnnotations()) {
+        if (annotation.getId() == INCLUDE_TYPES_ANNOTATION_ID) {
+            inl << "#include <" << annotation.getValue().getText() << ">\n";
+        }
+    }
     inl << "namespace mp {\n";
 
     std::ofstream h(output_path + ".proxy.h");
@@ -199,7 +205,11 @@ void Generate(kj::StringPtr src_prefix,
     h << "#ifndef " << guard << "_PROXY_H\n";
     h << "#define " << guard << "_PROXY_H\n\n";
     h << "#include <" << include_path << ".h>\n";
-    h << "#include <" << include_base << ".h>\n";
+    for (const auto annotation : file_schema.getProto().getAnnotations()) {
+        if (annotation.getId() == INCLUDE_ANNOTATION_ID) {
+            h << "#include <" << annotation.getValue().getText() << ">\n";
+        }
+    }
     h << "#include <" << PROXY_DECL << ">\n\n";
     h << "#if defined(__GNUC__) && !defined(__clang__)\n";
     h << "#pragma GCC diagnostic push\n";
