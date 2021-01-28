@@ -222,6 +222,7 @@ void Generate(kj::StringPtr src_prefix,
     std::ostringstream dec;
     std::ostringstream def_server;
     std::ostringstream def_client;
+    std::ostringstream int_client;
     std::ostringstream def_types;
 
     auto add_accessor = [&](kj::StringPtr name) {
@@ -543,6 +544,7 @@ void Generate(kj::StringPtr src_prefix,
               dec << "    using Client = ProxyClient<Message>;\n";
               dec << "    using Server = ProxyServer<Message>;\n";
               dec << "};\n";
+              int_client << "ProxyTypeRegister t" << node_nested.getId() << "{TypeList<" << proxied_class_type << ">{}};\n";
             }
             def_types << "ProxyClient<" << message_namespace << "::" << node_name
                       << ">::~ProxyClient() { clientDestroy(*this); " << client_destroy.str() << " }\n";
@@ -559,6 +561,7 @@ void Generate(kj::StringPtr src_prefix,
     cpp_server << "} // namespace mp\n";
 
     cpp_client << def_client.str();
+    cpp_client << "namespace {\n" << int_client.str() << "} // namespace\n";
     cpp_client << "} // namespace mp\n";
 
     cpp_types << def_types.str();

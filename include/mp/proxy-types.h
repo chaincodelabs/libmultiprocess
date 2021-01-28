@@ -10,6 +10,7 @@
 #include <exception>
 #include <optional>
 #include <set>
+#include <typeindex>
 #include <vector>
 
 namespace mp {
@@ -1475,6 +1476,17 @@ kj::Promise<void> serverInvoke(Server& server, CallContext& call_context, Fn fn)
         throw;
     }
 }
+
+//! Map to convert client interface pointers to ProxyContext struct references
+//! at runtime using typeids.
+struct ProxyTypeRegister {
+    template<typename Interface>
+    ProxyTypeRegister(TypeList<Interface>) {
+        types().emplace(typeid(Interface), [](void* iface) -> ProxyContext& { return static_cast<typename mp::ProxyType<Interface>::Client&>(*static_cast<Interface*>(iface)).m_context; });
+    }
+    using Types = std::map<std::type_index, ProxyContext&(*)(void*)>;
+    static Types& types() { static Types types; return types; }
+};
 
 } // namespace mp
 
