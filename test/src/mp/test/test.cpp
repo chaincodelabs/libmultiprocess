@@ -88,6 +88,11 @@ KJ_TEST("Call FooInterface methods")
 
     disconnect_client();
     thread.join();
+
+    bool destroyed = false;
+    foo->m_context.cleanup.emplace_front([&destroyed]{ destroyed = true; });
+    foo.reset();
+    KJ_EXPECT(destroyed);
 }
 
 } // namespace test

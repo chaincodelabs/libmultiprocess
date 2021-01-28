@@ -39,6 +39,15 @@ struct ProxyType;
 using CleanupList = std::list<std::function<void()>>;
 using CleanupIt = typename CleanupList::iterator;
 
+//! Context data associated with proxy client and server classes.
+struct ProxyContext
+{
+    Connection* connection;
+    std::list<std::function<void()>> cleanup;
+
+    ProxyContext(Connection* connection) : connection(connection) {}
+};
+
 //! Base class for generated ProxyClient classes that implement a C++ interface
 //! and forward calls to a capnp interface.
 template <typename Interface_, typename Impl_>
@@ -59,10 +68,7 @@ public:
     ProxyClient<Interface>& self() { return static_cast<ProxyClient<Interface>&>(*this); }
 
     typename Interface::Client m_client;
-    Connection* m_connection;
-    bool m_destroy_connection;
-    CleanupIt m_cleanup; //!< Pointer to self-cleanup callback registered to handle connection object getting destroyed
-                         //!< before this client object.
+    ProxyContext m_context;
 };
 
 //! Customizable (through template specialization) base class used in generated ProxyClient implementations from
@@ -100,7 +106,7 @@ public:
      * appropriate times depending on semantics of the particular method being
      * wrapped. */
     std::shared_ptr<Impl> m_impl;
-    Connection& m_connection;
+    ProxyContext m_context;
 };
 
 //! Customizable (through template specialization) base class used in generated ProxyServer implementations from
