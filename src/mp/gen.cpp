@@ -598,15 +598,15 @@ int main(int argc, char** argv)
     auto fs = kj::newDiskFilesystem();
     auto cwd = fs->getCurrentPath();
 #endif
+    for (size_t i = 4; i < argc; ++i) {
+        import_paths.push_back(argv[i]);
+    }
     for (const char* path : {CMAKE_INSTALL_PREFIX "/include", capnp_PREFIX "/include"}) {
 #ifdef HAVE_KJ_FILESYSTEM
         KJ_IF_MAYBE(dir, fs->getRoot().tryOpenSubdir(cwd.evalNative(path))) { import_paths.emplace_back(path); }
 #else
         import_paths.emplace_back(path);
 #endif
-    }
-    for (size_t i = 4; i < argc; ++i) {
-        import_paths.push_back(argv[i]);
     }
     Generate(argv[1], argv[2], argv[3], {import_paths.data(), import_paths.size()});
     return 0;
