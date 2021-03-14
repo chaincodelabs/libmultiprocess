@@ -25,7 +25,7 @@ basis in this library to construct the event-loop necessary to service IPC reque
 
 ## Example
 
-A simple interface description can be found at [test/src/mp/test/foo.capnp](test/src/mp/test/foo.capnp), implementation in [test/src/mp/test/foo.h](test/src/mp/test/foo.h), and usage in [test/src/mp/test/test.cpp](test/src/mp/test/test.cpp).
+A simple interface description can be found at [test/mp/test/foo.capnp](test/mp/test/foo.capnp), implementation in [test/mp/test/foo.h](test/mp/test/foo.h), and usage in [test/mp/test/test.cpp](test/mp/test/test.cpp).
 
 ## Future directions
 
