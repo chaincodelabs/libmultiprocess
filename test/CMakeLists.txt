@@ -17,38 +17,36 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS tests)
 if(BUILD_TESTING AND TARGET CapnProto::kj-test)
   add_custom_command(
     OUTPUT
-      src/mp/test/foo.capnp.h
-      src/mp/test/foo.capnp.c++
-      src/mp/test/foo.capnp.proxy.h
-      src/mp/test/foo.capnp.proxy-server.c++
-      src/mp/test/foo.capnp.proxy-client.c++
-      src/mp/test/foo.capnp.proxy-types.c++
-      src/mp/test/foo.capnp.proxy-types.h
-    COMMAND mpgen "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/src/mp/test/foo.capnp" "${CMAKE_SOURCE_DIR}/include" "${capnp_PREFIX}/include"
-    DEPENDS src/mp/test/foo.capnp mpgen
+      mp/test/foo.capnp.h
+      mp/test/foo.capnp.c++
+      mp/test/foo.capnp.proxy.h
+      mp/test/foo.capnp.proxy-server.c++
+      mp/test/foo.capnp.proxy-client.c++
+      mp/test/foo.capnp.proxy-types.c++
+      mp/test/foo.capnp.proxy-types.h
+    COMMAND mpgen "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/mp/test/foo.capnp" "${CMAKE_SOURCE_DIR}/include" "${capnp_PREFIX}/include"
+    DEPENDS mp/test/foo.capnp mpgen
   )
 
   set_property(SOURCE ${MP_PROXY_HDRS} PROPERTY GENERATED 1)
 
   add_executable(mptest
     ${MP_PROXY_HDRS}
-    src/mp/test/foo.capnp.h
-    src/mp/test/foo.capnp.c++
-    src/mp/test/foo.capnp.proxy.h
-    src/mp/test/foo.capnp.proxy-server.c++
-    src/mp/test/foo.capnp.proxy-client.c++
-    src/mp/test/foo.capnp.proxy-types.c++
-    src/mp/test/foo.capnp.proxy-types.h
-    src/mp/test/foo-types.h
-    src/mp/test/foo.h
-    src/mp/test/test.cpp
+    mp/test/foo.capnp.h
+    mp/test/foo.capnp.c++
+    mp/test/foo.capnp.proxy.h
+    mp/test/foo.capnp.proxy-server.c++
+    mp/test/foo.capnp.proxy-client.c++
+    mp/test/foo.capnp.proxy-types.c++
+    mp/test/foo.capnp.proxy-types.h
+    mp/test/foo-types.h
+    mp/test/foo.h
+    mp/test/test.cpp
   )
   target_include_directories(mptest PUBLIC
     ${CAPNP_INCLUDE_DIRECTORY}
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
   )
   target_link_libraries(mptest PRIVATE CapnProto::capnp)
   target_link_libraries(mptest PRIVATE CapnProto::capnp-rpc)
