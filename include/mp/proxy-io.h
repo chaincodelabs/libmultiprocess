@@ -338,6 +338,13 @@ public:
 };
 
 //! Vat id for server side of connection. Required argument to RpcSystem::bootStrap()
+//!
+//! "Vat" is Cap'n Proto nomenclature for a host of various objects that facilitates
+//! bidirectional communication with other vats; it is often but not always 1-1 with
+//! processes. Cap'n Proto doesn't reference clients or servers per se; instead everything
+//! is just a vat.
+//!
+//! See also: https://github.com/capnproto/capnproto/blob/9021f0c722b36cb11e3690b0860939255ebad39c/c%2B%2B/src/capnp/rpc.capnp#L42-L56
 struct ServerVatId
 {
     ::capnp::word scratch[4]{};
