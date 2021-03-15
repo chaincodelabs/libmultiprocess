@@ -237,8 +237,8 @@ struct Waiter
     {
         m_cv.wait(lock, [&] {
             // Important for this to be "while (m_fn)", not "if (m_fn)" to avoid
-            // a lost-wakeup bug. A new m_fn and m_cv notification might be set
-            // after then fn() call and before the lock.lock() call in this loop
+            // a lost-wakeup bug. A new m_fn and m_cv notification might be sent
+            // after the fn() call and before the lock.lock() call in this loop
             // in the case where a capnp response is sent and a brand new
             // request is immediately received.
             while (m_fn) {
@@ -307,7 +307,7 @@ public:
     void onDisconnect(F&& f)
     {
         // Add disconnect handler to local TaskSet to ensure it is cancelled and
-        // will never after connection object is destroyed. But when disconnect
+        // will never run after connection object is destroyed. But when disconnect
         // handler fires, do not call the function f right away, instead add it
         // to the EventLoop TaskSet to avoid "Promise callback destroyed itself"
         // error in cases where f deletes this Connection object.
@@ -388,7 +388,7 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
         // this object after it's already destroyed.
         m_context.connection->removeSyncCleanup(cleanup);
 
-        // Destroy remote object, waiting for it to deleted server side.
+        // Destroy remote object, waiting for it to be deleted server side.
         self().destroy();
 
         // FIXME: Could just invoke removed addCleanup fn here instead of duplicating code
@@ -464,12 +464,12 @@ struct ThreadContext
     //! Identifying string for debug.
     std::string thread_name;
 
-    //! Waiter object used allow client threads blocked waiting for a server
+    //! Waiter object used to allow client threads blocked waiting for a server
     //! response to execute callbacks made from the client's corresponding
     //! server thread.
     std::unique_ptr<Waiter> waiter = nullptr;
 
-    //! When client is making a request a to server, this is the
+    //! When client is making a request to a server, this is the
     //! `callbackThread` argument it passes in the request, used by the server
     //! in case it needs to make callbacks into the client that need to execute
     //! while the client is waiting. This will be set to a local thread object.
