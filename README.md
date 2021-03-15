@@ -17,6 +17,12 @@ If the wrapped C++ object inherits from an abstract base class declaring virtual
 
 There is also optional support for thread mapping, so each thread making interprocess calls can have a dedicated thread processing requests from it, and callbacks from processing threads are executed on corresponding request threads (so recursive mutexes and thread names function as expected in callbacks).
 
+### What is `kj`?
+
+KJ is a concurrency framework [bundled with
+capnproto](https://capnproto.org/cxxrpc.html#kj-concurrency-framework); it is used as a
+basis in this library to construct the event-loop necessary to service IPC requests.
+
 ## Example
 
 A simple interface description can be found at [test/src/mp/test/foo.capnp](test/src/mp/test/foo.capnp), implementation in [test/src/mp/test/foo.h](test/src/mp/test/foo.h), and usage in [test/src/mp/test/test.cpp](test/src/mp/test/test.cpp).

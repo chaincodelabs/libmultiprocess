@@ -81,7 +81,7 @@ std::string LogEscape(const kj::StringTree& string)
     string.visit([&](const kj::ArrayPtr<const char>& piece) {
         if (result.size() > MAX_SIZE) return;
         for (char c : piece) {
-            if ('c' == '\\') {
+            if (c == '\\') {
                 result.append("\\\\");
             } else if (c < 0x20 || c > 0x7e) {
                 char escape[4];
