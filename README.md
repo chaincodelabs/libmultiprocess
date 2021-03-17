@@ -27,6 +27,13 @@ basis in this library to construct the event-loop necessary to service IPC reque
 
 A simple interface description can be found at [test/mp/test/foo.capnp](test/mp/test/foo.capnp), implementation in [test/mp/test/foo.h](test/mp/test/foo.h), and usage in [test/mp/test/test.cpp](test/mp/test/test.cpp).
 
+A more complete example can be found in [example](example/) and run with:
+
+```sh
+make -C build example
+build/example/mpexample
+```
+
 ## Future directions
 
 _libmultiprocess_ uses the [Cap'n Proto](https://capnproto.org) interface description language and protocol, but it could be extended or changed to use a different IDL/protocol like [gRPC](https://grpc.io). The nice thing about _Cap'n Proto_ compared to _gRPC_ and most other lower level protocols is that it allows interface pointers (_Services_ in gRPC parlance) to be passed as method arguments and return values, so object references and bidirectional requests work out of the box. Supporting a lower-level protocol would require writing adding maps and tracking code to proxy objects.
