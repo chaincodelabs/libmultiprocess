@@ -1,0 +1,66 @@
+// Copyright (c) 2021 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#include <filesystem>
+#include <fstream>
+#include <init.capnp.h>
+#include <init.capnp.proxy-types.h>
+#include <iostream>
+#include <mp/proxy-io.h>
+
+namespace fs = std::filesystem;
+
+auto Spawn(mp::EventLoop& loop, const std::string& process_argv0, const std::string& new_exe_name)
+{
+    int pid;
+    int fd = mp::SpawnProcess(pid, [&](int fd) -> std::vector<std::string> {
+        fs::path path = process_argv0;
+        path.remove_filename();
+        path.append(new_exe_name);
+        return {path.string(), std::to_string(fd)};
+    });
+    return std::make_tuple(mp::ConnectStream<InitInterface>(loop, fd), pid);
+}
+
+void LogPrint(bool raise, std::string message)
+{
+    if (raise) throw std::runtime_error(std::move(message));
+    std::ofstream("debug.log", std::ios_base::app) << message << std::endl;
+}
+
+int main(int argc, char** argv)
+{
+    if (argc != 1) {
+        std::cout << "Usage: mpexample\n";
+        return 1;
+    }
+
+    std::promise<mp::EventLoop*> promise;
+    std::thread loop_thread([&] {
+        mp::EventLoop loop("mpexample", LogPrint);
+        {
+            std::unique_lock<std::mutex> lock(loop.m_mutex);
+            loop.addClient(lock);
+        }
+        promise.set_value(&loop);
+        loop.loop();
+    });
+    mp::EventLoop* loop = promise.get_future().get();
+
+    auto [printer_init, printer_pid] = Spawn(*loop, argv[0], "mpprinter");
+    auto [calc_init, calc_pid] = Spawn(*loop, argv[0], "mpcalculator");
+    auto calc = calc_init->makeCalculator(printer_init->makePrinter());
+    while (true) {
+        std::string eqn;
+        std::cout << "Enter the equation: ";
+        std::getline(std::cin, eqn);
+        calc->solveEquation(eqn);
+    }
+    calc.reset();
+    calc_init.reset();
+    mp::WaitProcess(calc_pid);
+    printer_init.reset();
+    mp::WaitProcess(printer_pid);
+    return 0;
+}
