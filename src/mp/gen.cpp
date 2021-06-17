@@ -317,8 +317,8 @@ void Generate(kj::StringPtr src_prefix,
                     auto field_name = field.getProto().getName();
                     auto member_name = field_name;
                     GetAnnotationText(field.getProto(), NAME_ANNOTATION_ID, &member_name);
-                    inl << "    static auto get(std::integral_constant<size_t, " << i << ">) -> AUTO_RETURN("
-                        << "&" << proxied_class_type << "::" << member_name << ")\n";
+                    inl << "    static decltype(auto) get(std::integral_constant<size_t, " << i << ">) { return "
+                        << "&" << proxied_class_type << "::" << member_name << "; }\n";
                     ++i;
                 }
                 inl << "    static constexpr size_t fields = " << i << ";\n";

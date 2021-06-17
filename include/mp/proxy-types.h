@@ -44,8 +44,7 @@ struct StructField
     template<typename A = Accessor> auto has() const -> typename std::enable_if<!A::optional && !A::boxed, bool>::type { return true; }
     template<typename A = Accessor> auto want() const -> typename std::enable_if<A::requested, bool>::type { return A::getWant(m_struct); }
     template<typename A = Accessor> auto want() const -> typename std::enable_if<!A::requested, bool>::type { return true; }
-
-    template<typename A = Accessor, typename... Args> auto set(Args&&... args) const -> AUTO_RETURN(A::set(this->m_struct, std::forward<Args>(args)...))
+    template<typename A = Accessor, typename... Args> decltype(auto) set(Args&&... args) const { return A::set(this->m_struct, std::forward<Args>(args)...); }
     template<typename A = Accessor, typename... Args> auto init(Args&&... args) const -> AUTO_RETURN(A::init(this->m_struct, std::forward<Args>(args)...))
     template<typename A = Accessor> auto setHas() const -> typename std::enable_if<A::optional>::type { return A::setHas(m_struct); }
     template<typename A = Accessor> auto setHas() const -> typename std::enable_if<!A::optional>::type { }
@@ -521,7 +520,7 @@ struct ProxyCallFn
     InvokeContext m_proxy;
 
     template <typename... CallParams>
-    auto operator()(CallParams&&... params) -> AUTO_RETURN(this->m_proxy->call(std::forward<CallParams>(params)...))
+    decltype(auto) operator()(CallParams&&... params) { return this->m_proxy->call(std::forward<CallParams>(params)...); }
 };
 
 template <typename FnR, typename... FnParams, typename Input, typename ReadDest>
@@ -762,10 +761,10 @@ struct ListOutput<::capnp::List<T, kind>>
     size_t m_index;
 
     // clang-format off
-    auto get() const -> AUTO_RETURN(this->m_builder[this->m_index])
-    auto init() const -> AUTO_RETURN(this->m_builder[this->m_index])
-    template<typename B = Builder, typename Arg> auto set(Arg&& arg) const -> AUTO_RETURN(static_cast<B&>(this->m_builder).set(m_index, std::forward<Arg>(arg)))
-    template<typename B = Builder, typename Arg> auto init(Arg&& arg) const -> AUTO_RETURN(static_cast<B&>(this->m_builder).init(m_index, std::forward<Arg>(arg)))
+    decltype(auto) get() const { return this->m_builder[this->m_index]; }
+    decltype(auto) init() const { return this->m_builder[this->m_index]; }
+    template<typename B = Builder, typename Arg> decltype(auto) set(Arg&& arg) const { return static_cast<B&>(this->m_builder).set(m_index, std::forward<Arg>(arg)); }
+    template<typename B = Builder, typename Arg> decltype(auto) init(Arg&& arg) const { return static_cast<B&>(this->m_builder).init(m_index, std::forward<Arg>(arg)); }
     // clang-format on
 };
 
@@ -1248,10 +1247,12 @@ struct ServerCall
 {
     // FIXME: maybe call call_context.releaseParams()
     template <typename ServerContext, typename... Args>
-    auto invoke(ServerContext& server_context, TypeList<>, Args&&... args) const -> AUTO_RETURN(
-        ProxyServerMethodTraits<typename decltype(server_context.call_context.getParams())::Reads>::invoke(
+    decltype(auto) invoke(ServerContext& server_context, TypeList<>, Args&&... args) const
+    {
+        return ProxyServerMethodTraits<typename decltype(server_context.call_context.getParams())::Reads>::invoke(
             server_context,
-            std::forward<Args>(args)...))
+            std::forward<Args>(args)...);
+    }
 };
 
 struct ServerDestroy
@@ -1318,13 +1319,15 @@ struct ServerField : Parent
     const Parent& parent() const { return *this; }
 
     template <typename ServerContext, typename ArgTypes, typename... Args>
-    auto invoke(ServerContext& server_context, ArgTypes, Args&&... args) const
-        -> AUTO_RETURN(CallPassField<Accessor>(Priority<2>(),
+    decltype(auto) invoke(ServerContext& server_context, ArgTypes, Args&&... args) const
+    {
+        return CallPassField<Accessor>(Priority<2>(),
             typename Split<argc, ArgTypes>::First(),
             server_context,
             this->parent(),
             typename Split<argc, ArgTypes>::Second(),
-            std::forward<Args>(args)...))
+            std::forward<Args>(args)...);
+    }
 };
 
 template <int argc, typename Accessor, typename Parent>
