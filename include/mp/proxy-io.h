@@ -157,7 +157,7 @@ public:
     {
         Logger logger(false, m_log_fn);
         logger << "{" << LongThreadName(m_exe_name) << "} ";
-        return std::move(logger);
+        return logger;
     }
     Logger logPlain() { return Logger(false, m_log_fn); }
     Logger raise() { return Logger(true, m_log_fn); }
