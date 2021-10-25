@@ -4,7 +4,7 @@ Installation currently requires Cap'n Proto:
 
 ```sh
 apt install libcapnp-dev capnproto
-brew install capnp
+brew install capnp cmake
 dnf install capnproto
 ```
 
