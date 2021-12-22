@@ -211,7 +211,7 @@ void Generate(kj::StringPtr src_prefix,
         }
     }
     h << "#include <" << PROXY_DECL << ">\n\n";
-    h << "#if defined(__GNUC__) && !defined(__clang__)\n";
+    h << "#if defined(__GNUC__)\n";
     h << "#pragma GCC diagnostic push\n";
     h << "#pragma GCC diagnostic ignored \"-Wsuggest-override\"\n";
     h << "#endif\n";
@@ -330,7 +330,7 @@ void Generate(kj::StringPtr src_prefix,
             const auto& interface = node.asInterface();
 
             std::ostringstream client;
-            client << "template<>\nstruct ProxyClient<" << message_namespace << "::" << node_name << "> : ";
+            client << "template<>\nstruct ProxyClient<" << message_namespace << "::" << node_name << "> final : ";
             client << "public ProxyClientCustom<" << message_namespace << "::" << node_name << ", "
                    << proxied_class_type << ">\n{\n";
             client << "public:\n";
@@ -581,7 +581,7 @@ void Generate(kj::StringPtr src_prefix,
     inl << "#endif\n";
 
     h << "} // namespace mp\n";
-    h << "#if defined(__GNUC__) && !defined(__clang__)\n";
+    h << "#if defined(__GNUC__)\n";
     h << "#pragma GCC diagnostic pop\n";
     h << "#endif\n";
     h << "#endif\n";
