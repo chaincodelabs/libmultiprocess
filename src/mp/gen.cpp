@@ -330,7 +330,7 @@ void Generate(kj::StringPtr src_prefix,
             const auto& interface = node.asInterface();
 
             std::ostringstream client;
-            client << "template<>\nstruct ProxyClient<" << message_namespace << "::" << node_name << "> : ";
+            client << "template<>\nstruct ProxyClient<" << message_namespace << "::" << node_name << "> final : ";
             client << "public ProxyClientCustom<" << message_namespace << "::" << node_name << ", "
                    << proxied_class_type << ">\n{\n";
             client << "public:\n";
