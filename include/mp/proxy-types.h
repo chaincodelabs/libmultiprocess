@@ -644,7 +644,7 @@ void BuildField(TypeList<LocalTypes...>, Context& context, Output&& output, Valu
 
 //! Adapter to convert ProxyCallback object call to function object call.
 template <typename Result, typename... Args>
-class ProxyCallbackImpl : public ProxyCallback<std::function<Result(Args...)>>
+class ProxyCallbackImpl final : public ProxyCallback<std::function<Result(Args...)>>
 {
     using Fn = std::function<Result(Args...)>;
     Fn m_fn;
