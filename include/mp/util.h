@@ -55,17 +55,6 @@ namespace mp {
 //!        }
 //!     };
 
-// C++11 workaround for C++14 auto return functions
-// (http://en.cppreference.com/w/cpp/language/template_argument_deduction#auto-returning_functions)
-#define AUTO_DO_RETURN(pre, x) \
-    decltype(x)                \
-    {                          \
-        pre;                   \
-        return x;              \
-    }
-
-#define AUTO_RETURN(x) AUTO_DO_RETURN(, x)
-
 //! Type holding a list of types.
 //!
 //! Example:

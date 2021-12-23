@@ -38,7 +38,7 @@ struct StructField
     Struct& m_struct;
 
     // clang-format off
-    template<typename A = Accessor> auto get() const -> AUTO_RETURN(A::get(this->m_struct))
+    template<typename A = Accessor> auto get() const -> decltype(A::get(this->m_struct)) { return A::get(this->m_struct); }
     template<typename A = Accessor> auto has() const -> typename std::enable_if<A::optional, bool>::type { return A::getHas(m_struct); }
     template<typename A = Accessor> auto has() const -> typename std::enable_if<!A::optional && A::boxed, bool>::type { return A::has(m_struct); }
     template<typename A = Accessor> auto has() const -> typename std::enable_if<!A::optional && !A::boxed, bool>::type { return true; }

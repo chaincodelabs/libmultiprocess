@@ -240,7 +240,7 @@ void Generate(kj::StringPtr src_prefix,
         std::string cap = Cap(name);
         accessors << "struct " << cap << "\n";
         accessors << "{\n";
-        accessors << "    template<typename S> static auto get(S&& s) -> AUTO_RETURN(s.get" << cap << "())\n";
+        accessors << "    template<typename S> static auto get(S&& s) -> decltype(s.get" << cap << "()) { return s.get" << cap << "(); }\n";
         accessors << "    template<typename S> static bool has(S&& s) { return s.has" << cap << "(); }\n";
         accessors << "    template<typename S, typename A> static void set(S&& s, A&& a) { s.set" << cap
                   << "(std::forward<A>(a)); }\n";
