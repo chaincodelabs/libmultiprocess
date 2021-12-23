@@ -244,8 +244,8 @@ void Generate(kj::StringPtr src_prefix,
         accessors << "    template<typename S> static bool has(S&& s) { return s.has" << cap << "(); }\n";
         accessors << "    template<typename S, typename A> static void set(S&& s, A&& a) { s.set" << cap
                   << "(std::forward<A>(a)); }\n";
-        accessors << "    template<typename S, typename... A> static auto init(S&& s, A&&... a) -> AUTO_RETURN(s.init"
-                  << cap << "(std::forward<A>(a)...))\n";
+        accessors << "    template<typename S, typename... A> static decltype(auto) init(S&& s, A&&... a) { return s.init"
+                  << cap << "(std::forward<A>(a)...); }\n";
         accessors << "    template<typename S> static bool getWant(S&& s) { return s.getWant" << cap << "(); }\n";
         accessors << "    template<typename S> static void setWant(S&& s) { s.setWant" << cap << "(true); }\n";
         accessors << "    template<typename S> static bool getHas(S&& s) { return s.getHas" << cap << "(); }\n";

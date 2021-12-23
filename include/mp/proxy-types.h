@@ -45,7 +45,7 @@ struct StructField
     template<typename A = Accessor> auto want() const -> typename std::enable_if<A::requested, bool>::type { return A::getWant(m_struct); }
     template<typename A = Accessor> auto want() const -> typename std::enable_if<!A::requested, bool>::type { return true; }
     template<typename A = Accessor, typename... Args> decltype(auto) set(Args&&... args) const { return A::set(this->m_struct, std::forward<Args>(args)...); }
-    template<typename A = Accessor, typename... Args> auto init(Args&&... args) const -> AUTO_RETURN(A::init(this->m_struct, std::forward<Args>(args)...))
+    template<typename A = Accessor, typename... Args> decltype(auto) init(Args&&... args) const { return A::init(this->m_struct, std::forward<Args>(args)...); }
     template<typename A = Accessor> auto setHas() const -> typename std::enable_if<A::optional>::type { return A::setHas(m_struct); }
     template<typename A = Accessor> auto setHas() const -> typename std::enable_if<!A::optional>::type { }
     template<typename A = Accessor> auto setWant() const -> typename std::enable_if<A::requested>::type { return A::setWant(m_struct); }
@@ -58,7 +58,7 @@ void CustomBuildField(TypeList<>,
     Priority<1>,
     ClientInvokeContext& invoke_context,
     Output&& output,
-    typename std::enable_if<std::is_same<decltype(output.init()), Context::Builder>::value>::type* enable = nullptr)
+    typename std::enable_if<std::is_same<decltype(output.get()), Context::Builder>::value>::type* enable = nullptr)
 {
     auto& connection = invoke_context.connection;
     auto& thread_context = invoke_context.thread_context;
