@@ -108,7 +108,7 @@ kj::Promise<U> JoinPromises(kj::Promise<T>&& prom1, kj::Promise<U>&& prom2)
 //! PassField override for mp.Context arguments. Return asynchronously and call
 //! function on other thread found in context.
 template <typename Accessor, typename ServerContext, typename Fn, typename... Args>
-auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn& fn, const Args&... args) ->
+auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn& fn, Args&&... args) ->
     typename std::enable_if<
         std::is_same<decltype(Accessor::get(server_context.call_context.getParams())), Context::Reader>::value,
         kj::Promise<typename ServerContext::CallContext>>::type
@@ -1078,6 +1078,18 @@ void PassField(Priority<0>, TypeList<LocalType>, ServerContext& server_context, 
         Make<StructField, Accessor>(results), *param);
 }
 
+//! Default PassField implementation for count(0) arguments, calling ReadField/BuildField
+template <typename Accessor, typename ServerContext, typename Fn, typename... Args>
+void PassField(Priority<0>, TypeList<>, ServerContext& server_context, const Fn& fn, Args&&... args)
+{
+    const auto& params = server_context.call_context.getParams();
+    const auto& input = Make<StructField, Accessor>(params);
+    ReadField(TypeList<>(), server_context, input);
+    fn.invoke(server_context, std::forward<Args>(args)...);
+    auto&& results = server_context.call_context.getResults();
+    BuildField(TypeList<>(), server_context, Make<StructField, Accessor>(results));
+}
+
 template <>
 struct ProxyServer<ThreadMap> final : public virtual ThreadMap::Server
 {
@@ -1105,19 +1117,6 @@ decltype(auto) CustomReadField(TypeList<>,
     typename std::enable_if<std::is_same<decltype(input.get()), ThreadMap::Client>::value>::type* enable = nullptr)
 {
     invoke_context.connection.m_thread_map = input.get();
-}
-
-//! PassField override for mp.ThreadMap arguments.
-template <typename Accessor, typename ServerContext, typename Fn, typename... Args>
-auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn& fn, Args&&... args) -> typename std::enable_if<
-    std::is_same<decltype(Accessor::get(server_context.call_context.getParams())), ThreadMap::Client>::value>::type
-{
-    const auto& params = server_context.call_context.getParams();
-    const auto& input = Make<StructField, Accessor>(params);
-    ReadField(TypeList<>(), server_context, input);
-    fn.invoke(server_context, std::forward<Args>(args)...);
-    auto&& results = server_context.call_context.getResults();
-    BuildField(TypeList<>(), server_context, Make<StructField, Accessor>(results));
 }
 
 template <typename Derived, size_t N = 0>
