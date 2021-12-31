@@ -240,12 +240,12 @@ void Generate(kj::StringPtr src_prefix,
         std::string cap = Cap(name);
         accessors << "struct " << cap << "\n";
         accessors << "{\n";
-        accessors << "    template<typename S> static auto get(S&& s) -> AUTO_RETURN(s.get" << cap << "())\n";
+        accessors << "    template<typename S> static auto get(S&& s) -> decltype(s.get" << cap << "()) { return s.get" << cap << "(); }\n";
         accessors << "    template<typename S> static bool has(S&& s) { return s.has" << cap << "(); }\n";
         accessors << "    template<typename S, typename A> static void set(S&& s, A&& a) { s.set" << cap
                   << "(std::forward<A>(a)); }\n";
-        accessors << "    template<typename S, typename... A> static auto init(S&& s, A&&... a) -> AUTO_RETURN(s.init"
-                  << cap << "(std::forward<A>(a)...))\n";
+        accessors << "    template<typename S, typename... A> static decltype(auto) init(S&& s, A&&... a) { return s.init"
+                  << cap << "(std::forward<A>(a)...); }\n";
         accessors << "    template<typename S> static bool getWant(S&& s) { return s.getWant" << cap << "(); }\n";
         accessors << "    template<typename S> static void setWant(S&& s) { s.setWant" << cap << "(true); }\n";
         accessors << "    template<typename S> static bool getHas(S&& s) { return s.getHas" << cap << "(); }\n";
@@ -317,8 +317,8 @@ void Generate(kj::StringPtr src_prefix,
                     auto field_name = field.getProto().getName();
                     auto member_name = field_name;
                     GetAnnotationText(field.getProto(), NAME_ANNOTATION_ID, &member_name);
-                    inl << "    static auto get(std::integral_constant<size_t, " << i << ">) -> AUTO_RETURN("
-                        << "&" << proxied_class_type << "::" << member_name << ")\n";
+                    inl << "    static decltype(auto) get(std::integral_constant<size_t, " << i << ">) { return "
+                        << "&" << proxied_class_type << "::" << member_name << "; }\n";
                     ++i;
                 }
                 inl << "    static constexpr size_t fields = " << i << ";\n";

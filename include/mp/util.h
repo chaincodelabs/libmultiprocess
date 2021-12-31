@@ -55,17 +55,6 @@ namespace mp {
 //!        }
 //!     };
 
-// C++11 workaround for C++14 auto return functions
-// (http://en.cppreference.com/w/cpp/language/template_argument_deduction#auto-returning_functions)
-#define AUTO_DO_RETURN(pre, x) \
-    decltype(x)                \
-    {                          \
-        pre;                   \
-        return x;              \
-    }
-
-#define AUTO_RETURN(x) AUTO_DO_RETURN(, x)
-
 //! Type holding a list of types.
 //!
 //! Example:
@@ -102,7 +91,7 @@ struct ComposeFn
     Fn2&& fn2;
 
     template <typename... Args>
-    auto operator()(Args&&... args) -> AUTO_RETURN(this->fn1(this->fn2(std::forward<Args>(args)...)))
+    decltype(auto) operator()(Args&&... args) { return this->fn1(this->fn2(std::forward<Args>(args)...)); }
 };
 
 //! Bound function. See Bind() below.
@@ -116,8 +105,10 @@ struct BoundFn<Fn, TypeList<>, TypeList<BoundArgs...>>
     Fn&& m_fn;
 
     template <typename... FreeArgs>
-    auto operator()(BoundArgs&... bound_args, FreeArgs&&... free_args)
-        -> AUTO_RETURN(this->m_fn(bound_args..., std::forward<FreeArgs>(free_args)...))
+    decltype(auto) operator()(BoundArgs&... bound_args, FreeArgs&&... free_args)
+    {
+        return this->m_fn(bound_args..., std::forward<FreeArgs>(free_args)...);
+    }
 };
 
 //! Specialization of above for recursive case.
@@ -130,7 +121,7 @@ struct BoundFn<Fn, TypeList<BindArg, BindArgs...>, TypeList<BoundArgs...>>
 
     BoundFn(Fn& fn, BindArg& bind_arg, BindArgs&... bind_args) : Base{fn, bind_args...}, m_bind_arg(bind_arg) {}
 
-    // Use std::result_of instead of AUTO_RETURN to work around gcc bug
+    // Use std::result_of instead of decltype return to work around gcc bug
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83249
     template <typename... FreeArgs>
     auto operator()(BoundArgs&... bound_args, FreeArgs&&... free_args) ->
@@ -167,7 +158,7 @@ struct BoundTupleFn
 {
     Fn& m_fn;
     template <typename... Params>
-    auto operator()(Params&&... params) -> AUTO_RETURN(this->m_fn(std::forward_as_tuple(params...)))
+    decltype(auto) operator()(Params&&... params) { return this->m_fn(std::forward_as_tuple(params...)); }
 };
 
 //! Bind tuple argument to function. Arguments passed to the returned function

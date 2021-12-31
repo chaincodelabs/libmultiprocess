@@ -38,15 +38,14 @@ struct StructField
     Struct& m_struct;
 
     // clang-format off
-    template<typename A = Accessor> auto get() const -> AUTO_RETURN(A::get(this->m_struct))
+    template<typename A = Accessor> auto get() const -> decltype(A::get(this->m_struct)) { return A::get(this->m_struct); }
     template<typename A = Accessor> auto has() const -> typename std::enable_if<A::optional, bool>::type { return A::getHas(m_struct); }
     template<typename A = Accessor> auto has() const -> typename std::enable_if<!A::optional && A::boxed, bool>::type { return A::has(m_struct); }
     template<typename A = Accessor> auto has() const -> typename std::enable_if<!A::optional && !A::boxed, bool>::type { return true; }
     template<typename A = Accessor> auto want() const -> typename std::enable_if<A::requested, bool>::type { return A::getWant(m_struct); }
     template<typename A = Accessor> auto want() const -> typename std::enable_if<!A::requested, bool>::type { return true; }
-
-    template<typename A = Accessor, typename... Args> auto set(Args&&... args) const -> AUTO_RETURN(A::set(this->m_struct, std::forward<Args>(args)...))
-    template<typename A = Accessor, typename... Args> auto init(Args&&... args) const -> AUTO_RETURN(A::init(this->m_struct, std::forward<Args>(args)...))
+    template<typename A = Accessor, typename... Args> decltype(auto) set(Args&&... args) const { return A::set(this->m_struct, std::forward<Args>(args)...); }
+    template<typename A = Accessor, typename... Args> decltype(auto) init(Args&&... args) const { return A::init(this->m_struct, std::forward<Args>(args)...); }
     template<typename A = Accessor> auto setHas() const -> typename std::enable_if<A::optional>::type { return A::setHas(m_struct); }
     template<typename A = Accessor> auto setHas() const -> typename std::enable_if<!A::optional>::type { }
     template<typename A = Accessor> auto setWant() const -> typename std::enable_if<A::requested>::type { return A::setWant(m_struct); }
@@ -59,7 +58,7 @@ void CustomBuildField(TypeList<>,
     Priority<1>,
     ClientInvokeContext& invoke_context,
     Output&& output,
-    typename std::enable_if<std::is_same<decltype(output.init()), Context::Builder>::value>::type* enable = nullptr)
+    typename std::enable_if<std::is_same<decltype(output.get()), Context::Builder>::value>::type* enable = nullptr)
 {
     auto& connection = invoke_context.connection;
     auto& thread_context = invoke_context.thread_context;
@@ -106,8 +105,10 @@ kj::Promise<U> JoinPromises(kj::Promise<T>&& prom1, kj::Promise<U>&& prom2)
     return prom1.then(kj::mvCapture(prom2, [](kj::Promise<U> prom2) { return prom2; }));
 }
 
+//! PassField override for mp.Context arguments. Return asynchronously and call
+//! function on other thread found in context.
 template <typename Accessor, typename ServerContext, typename Fn, typename... Args>
-auto PassField(TypeList<>, ServerContext& server_context, const Fn& fn, const Args&... args) ->
+auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn& fn, Args&&... args) ->
     typename std::enable_if<
         std::is_same<decltype(Accessor::get(server_context.call_context.getParams())), Context::Reader>::value,
         kj::Promise<typename ServerContext::CallContext>>::type
@@ -521,7 +522,7 @@ struct ProxyCallFn
     InvokeContext m_proxy;
 
     template <typename... CallParams>
-    auto operator()(CallParams&&... params) -> AUTO_RETURN(this->m_proxy->call(std::forward<CallParams>(params)...))
+    decltype(auto) operator()(CallParams&&... params) { return this->m_proxy->call(std::forward<CallParams>(params)...); }
 };
 
 template <typename FnR, typename... FnParams, typename Input, typename ReadDest>
@@ -762,10 +763,10 @@ struct ListOutput<::capnp::List<T, kind>>
     size_t m_index;
 
     // clang-format off
-    auto get() const -> AUTO_RETURN(this->m_builder[this->m_index])
-    auto init() const -> AUTO_RETURN(this->m_builder[this->m_index])
-    template<typename B = Builder, typename Arg> auto set(Arg&& arg) const -> AUTO_RETURN(static_cast<B&>(this->m_builder).set(m_index, std::forward<Arg>(arg)))
-    template<typename B = Builder, typename Arg> auto init(Arg&& arg) const -> AUTO_RETURN(static_cast<B&>(this->m_builder).init(m_index, std::forward<Arg>(arg)))
+    decltype(auto) get() const { return this->m_builder[this->m_index]; }
+    decltype(auto) init() const { return this->m_builder[this->m_index]; }
+    template<typename B = Builder, typename Arg> decltype(auto) set(Arg&& arg) const { return static_cast<B&>(this->m_builder).set(m_index, std::forward<Arg>(arg)); }
+    template<typename B = Builder, typename Arg> decltype(auto) init(Arg&& arg) const { return static_cast<B&>(this->m_builder).init(m_index, std::forward<Arg>(arg)); }
     // clang-format on
 };
 
@@ -978,8 +979,9 @@ void CustomBuildField(TypeList<LocalType> local_type,
     BuildOne<0>(local_type, invoke_context, output.init(), value);
 }
 
+//! PassField override for C++ pointer arguments.
 template <typename Accessor, typename LocalType, typename ServerContext, typename Fn, typename... Args>
-void PassField(TypeList<LocalType*>, ServerContext& server_context, const Fn& fn, Args&&... args)
+void PassField(Priority<1>, TypeList<LocalType*>, ServerContext& server_context, const Fn& fn, Args&&... args)
 {
     const auto& params = server_context.call_context.getParams();
     const auto& input = Make<StructField, Accessor>(params);
@@ -1002,8 +1004,9 @@ void PassField(TypeList<LocalType*>, ServerContext& server_context, const Fn& fn
         Make<StructField, Accessor>(results), param);
 }
 
+//! PassField override for callable interface reference arguments.
 template <typename Accessor, typename LocalType, typename ServerContext, typename Fn, typename... Args>
-auto PassField(TypeList<LocalType&>, ServerContext& server_context, Fn&& fn, Args&&... args)
+auto PassField(Priority<1>, TypeList<LocalType&>, ServerContext& server_context, Fn&& fn, Args&&... args)
     -> Require<typename decltype(Accessor::get(server_context.call_context.getParams()))::Calls>
 {
     // Just create a temporary ProxyClient if argument is a reference to an
@@ -1051,8 +1054,9 @@ void MaybeSetWant(LocalTypes, Priority<0>, Args&&...)
 {
 }
 
+//! Default PassField implementation calling MaybeReadField/MaybeBuildField.
 template <typename Accessor, typename LocalType, typename ServerContext, typename Fn, typename... Args>
-void DefaultPassField(TypeList<LocalType>, ServerContext& server_context, Fn&& fn, Args&&... args)
+void PassField(Priority<0>, TypeList<LocalType>, ServerContext& server_context, Fn&& fn, Args&&... args)
 {
     InvokeContext& invoke_context = server_context;
     using ArgType = RemoveCvRef<LocalType>;
@@ -1072,6 +1076,18 @@ void DefaultPassField(TypeList<LocalType>, ServerContext& server_context, Fn&& f
     auto&& results = server_context.call_context.getResults();
     MaybeBuildField(std::integral_constant<bool, Accessor::out>(), TypeList<LocalType>(), invoke_context,
         Make<StructField, Accessor>(results), *param);
+}
+
+//! Default PassField implementation for count(0) arguments, calling ReadField/BuildField
+template <typename Accessor, typename ServerContext, typename Fn, typename... Args>
+void PassField(Priority<0>, TypeList<>, ServerContext& server_context, const Fn& fn, Args&&... args)
+{
+    const auto& params = server_context.call_context.getParams();
+    const auto& input = Make<StructField, Accessor>(params);
+    ReadField(TypeList<>(), server_context, input);
+    fn.invoke(server_context, std::forward<Args>(args)...);
+    auto&& results = server_context.call_context.getResults();
+    BuildField(TypeList<>(), server_context, Make<StructField, Accessor>(results));
 }
 
 template <>
@@ -1101,18 +1117,6 @@ decltype(auto) CustomReadField(TypeList<>,
     typename std::enable_if<std::is_same<decltype(input.get()), ThreadMap::Client>::value>::type* enable = nullptr)
 {
     invoke_context.connection.m_thread_map = input.get();
-}
-
-template <typename Accessor, typename ServerContext, typename Fn, typename... Args>
-auto PassField(TypeList<>, ServerContext& server_context, const Fn& fn, Args&&... args) -> typename std::enable_if<
-    std::is_same<decltype(Accessor::get(server_context.call_context.getParams())), ThreadMap::Client>::value>::type
-{
-    const auto& params = server_context.call_context.getParams();
-    const auto& input = Make<StructField, Accessor>(params);
-    ReadField(TypeList<>(), server_context, input);
-    fn.invoke(server_context, std::forward<Args>(args)...);
-    auto&& results = server_context.call_context.getResults();
-    BuildField(TypeList<>(), server_context, Make<StructField, Accessor>(results));
 }
 
 template <typename Derived, size_t N = 0>
@@ -1248,10 +1252,12 @@ struct ServerCall
 {
     // FIXME: maybe call call_context.releaseParams()
     template <typename ServerContext, typename... Args>
-    auto invoke(ServerContext& server_context, TypeList<>, Args&&... args) const -> AUTO_RETURN(
-        ProxyServerMethodTraits<typename decltype(server_context.call_context.getParams())::Reads>::invoke(
+    decltype(auto) invoke(ServerContext& server_context, TypeList<>, Args&&... args) const
+    {
+        return ProxyServerMethodTraits<typename decltype(server_context.call_context.getParams())::Reads>::invoke(
             server_context,
-            std::forward<Args>(args)...))
+            std::forward<Args>(args)...);
+    }
 };
 
 struct ServerDestroy
@@ -1299,16 +1305,12 @@ struct ServerExcept : Parent
 template <class Accessor>
 void CustomPassField();
 
-// clang-format off
+//! PassField override calling CustomPassField function, if it exists.
 template <typename Accessor, typename... Args>
-auto CallPassField(Priority<2>, Args&&... args) -> AUTO_RETURN(CustomPassField<Accessor>(std::forward<Args>(args)...));
-
-template <typename Accessor, typename... Args>
-auto CallPassField(Priority<1>, Args&&... args) -> AUTO_RETURN(PassField<Accessor>(std::forward<Args>(args)...));
-
-template <typename Accessor, typename... Args>
-auto CallPassField(Priority<0>, Args&&... args) -> AUTO_RETURN(DefaultPassField<Accessor>(std::forward<Args>(args)...));
-// clang-format on
+auto PassField(Priority<2>, Args&&... args) -> decltype(CustomPassField<Accessor>(std::forward<Args>(args)...))
+{
+    return CustomPassField<Accessor>(std::forward<Args>(args)...);
+};
 
 template <int argc, typename Accessor, typename Parent>
 struct ServerField : Parent
@@ -1318,13 +1320,15 @@ struct ServerField : Parent
     const Parent& parent() const { return *this; }
 
     template <typename ServerContext, typename ArgTypes, typename... Args>
-    auto invoke(ServerContext& server_context, ArgTypes, Args&&... args) const
-        -> AUTO_RETURN(CallPassField<Accessor>(Priority<2>(),
+    decltype(auto) invoke(ServerContext& server_context, ArgTypes, Args&&... args) const
+    {
+        return PassField<Accessor>(Priority<2>(),
             typename Split<argc, ArgTypes>::First(),
             server_context,
             this->parent(),
             typename Split<argc, ArgTypes>::Second(),
-            std::forward<Args>(args)...))
+            std::forward<Args>(args)...);
+    }
 };
 
 template <int argc, typename Accessor, typename Parent>

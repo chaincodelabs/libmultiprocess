@@ -163,8 +163,10 @@ struct ProxyMethodTraits<MethodParams, Require<decltype(ProxyMethod<MethodParams
     : public FunctionTraits<decltype(ProxyMethod<MethodParams>::impl)>
 {
     template <typename ServerContext, typename... Args>
-    static auto invoke(ServerContext& server_context, Args&&... args) -> AUTO_RETURN(
-        (server_context.proxy_server.m_impl.get()->*ProxyMethod<MethodParams>::impl)(std::forward<Args>(args)...))
+    static decltype(auto) invoke(ServerContext& server_context, Args&&... args)
+    {
+        return (server_context.proxy_server.m_impl.get()->*ProxyMethod<MethodParams>::impl)(std::forward<Args>(args)...);
+    }
 };
 
 //! Customizable (through template specialization) traits class used in generated ProxyClient implementations from
