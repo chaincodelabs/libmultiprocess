@@ -2,7 +2,7 @@
 
 ## Overview
 
-_libmultiprocess_ is a library and code generator that allows calling C++ class interfaces across different processes. For an interface to be available from other processses, it needs two definitions:
+_libmultiprocess_ is a library and code generator that allows calling C++ class interfaces across different processes. For an interface to be available from other processes, it needs two definitions:
 
 - An **API definition** declaring how the interface is called. Included examples: [calculator.h](https://github.com/chaincodelabs/libmultiprocess/blob/master/example/calculator.h), [printer.h](https://github.com/chaincodelabs/libmultiprocess/blob/master/example/printer.h), [init.h](https://github.com/chaincodelabs/libmultiprocess/blob/master/example/init.h). Bitcoin examples: [node.h](https://github.com/ryanofsky/bitcoin/blob/ipc-export/src/interfaces/node.h), [wallet.h](https://github.com/ryanofsky/bitcoin/blob/ipc-export/src/interfaces/wallet.h), [echo.h](https://github.com/ryanofsky/bitcoin/blob/ipc-export/src/interfaces/echo.h), [init.h](https://github.com/ryanofsky/bitcoin/blob/ipc-export/src/interfaces/init.h).
 

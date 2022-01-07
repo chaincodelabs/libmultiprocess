@@ -3,7 +3,7 @@
 Given an interface description of an object with one or more methods, libmultiprocess generates:
 
 * A C++ `ProxyClient` class with an implementation of each interface method that sends a request over a socket, waits for a response, and returns the result.
-* A C++ `ProxyServer` class that listens for requests over a socket and calls a wrapped C++ object implementating the same interface to actually execute the requests.
+* A C++ `ProxyServer` class that listens for requests over a socket and calls a wrapped C++ object implementing the same interface to actually execute the requests.
 
 The function call ⇆ request translation supports input and output arguments, standard types like `unique_ptr`, `vector`, `map`, and `optional`, and bidirectional calls between processes through interface pointer and `std::function` arguments.
 
