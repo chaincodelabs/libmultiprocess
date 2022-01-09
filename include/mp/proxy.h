@@ -117,7 +117,7 @@ struct ProxyServerCustom : public ProxyServerBase<Interface, Impl>
     using ProxyServerBase<Interface, Impl>::ProxyServerBase;
 };
 
-//! Function traits class used to get method paramater and result types in generated ProxyClient implementations from
+//! Function traits class used to get method parameter and result types in generated ProxyClient implementations from
 //! proxy-codegen.cpp.
 template <class Fn>
 struct FunctionTraits;
