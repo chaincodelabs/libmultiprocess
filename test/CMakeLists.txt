@@ -55,9 +55,6 @@ if(BUILD_TESTING AND TARGET CapnProto::kj-test)
   target_link_libraries(mptest PRIVATE CapnProto::kj-test)
   target_link_libraries(mptest PRIVATE Threads::Threads)
   target_link_libraries(mptest PRIVATE multiprocess)
-  set_target_properties(mptest PROPERTIES
-    CXX_STANDARD 17
-    CXX_STANDARD_REQUIRED YES)
 
   add_dependencies(tests mptest)
   add_test(NAME mptest COMMAND mptest)

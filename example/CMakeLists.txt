@@ -63,9 +63,6 @@ target_link_libraries(mpcalculator PRIVATE CapnProto::kj)
 target_link_libraries(mpcalculator PRIVATE CapnProto::kj-async)
 target_link_libraries(mpcalculator PRIVATE Threads::Threads)
 target_link_libraries(mpcalculator PRIVATE multiprocess)
-set_target_properties(mpcalculator PROPERTIES
-  CXX_STANDARD 17
-  CXX_STANDARD_REQUIRED YES)
 
 add_custom_command(
   OUTPUT
@@ -115,9 +112,6 @@ target_link_libraries(mpprinter PRIVATE CapnProto::kj)
 target_link_libraries(mpprinter PRIVATE CapnProto::kj-async)
 target_link_libraries(mpprinter PRIVATE Threads::Threads)
 target_link_libraries(mpprinter PRIVATE multiprocess)
-set_target_properties(mpprinter PROPERTIES
-  CXX_STANDARD 17
-  CXX_STANDARD_REQUIRED YES)
 
 add_executable(mpexample
   calculator.capnp.c++
@@ -157,8 +151,5 @@ target_link_libraries(mpexample PRIVATE CapnProto::kj-async)
 target_link_libraries(mpexample PRIVATE Threads::Threads)
 target_link_libraries(mpexample PRIVATE multiprocess)
 target_link_libraries(mpexample PRIVATE stdc++fs)
-set_target_properties(mpexample PROPERTIES
-  CXX_STANDARD 17
-  CXX_STANDARD_REQUIRED YES)
 
 add_custom_target(example DEPENDS mpexample mpcalculator mpprinter)

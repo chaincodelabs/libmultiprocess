@@ -3,7 +3,11 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 cmake_minimum_required(VERSION 3.8)
+
 project("Libmultiprocess" CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED YES)
+
 include(CMakePushCheckState)
 include(CheckCXXSourceCompiles)
 find_package(CapnProto REQUIRED)
@@ -69,9 +73,7 @@ target_link_libraries(multiprocess PRIVATE CapnProto::capnp-rpc)
 target_link_libraries(multiprocess PRIVATE CapnProto::kj)
 target_link_libraries(multiprocess PRIVATE CapnProto::kj-async)
 set_target_properties(multiprocess PROPERTIES
-    PUBLIC_HEADER "${MP_PUBLIC_HEADERS}"
-    CXX_STANDARD 17
-    CXX_STANDARD_REQUIRED YES)
+    PUBLIC_HEADER "${MP_PUBLIC_HEADERS}")
 install(TARGETS multiprocess EXPORT Multiprocess ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include/mp)
 
 add_executable(mpgen src/mp/gen.cpp)
@@ -84,9 +86,7 @@ target_link_libraries(mpgen PRIVATE CapnProto::kj)
 target_link_libraries(mpgen PRIVATE Threads::Threads)
 target_link_libraries(mpgen PRIVATE multiprocess)
 set_target_properties(mpgen PROPERTIES
-    INSTALL_RPATH_USE_LINK_PATH TRUE
-    CXX_STANDARD 17
-    CXX_STANDARD_REQUIRED YES)
+    INSTALL_RPATH_USE_LINK_PATH TRUE)
 install(TARGETS mpgen EXPORT Multiprocess RUNTIME DESTINATION bin)
 
 configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/config.h")
