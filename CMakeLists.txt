@@ -23,6 +23,7 @@ check_cxx_source_compiles("
   HAVE_PTHREAD_GETNAME_NP)
 
 check_cxx_source_compiles("
+  #include <cstdint>
   #include <pthread.h>
   int main(int argc, char** argv)
   {
