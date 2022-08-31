@@ -49,6 +49,11 @@ cmake_pop_check_state()
 
 capnp_generate_cpp(MP_PROXY_SRCS MP_PROXY_HDRS include/mp/proxy.capnp)
 
+add_library(util OBJECT src/mp/util.cpp)
+target_include_directories(util PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>)
+
 set(MP_PUBLIC_HEADERS
   ${MP_PROXY_HDRS}
   include/mp/proxy-io.h
@@ -61,7 +66,7 @@ add_library(multiprocess STATIC
   ${MP_PROXY_SRCS}
   ${MP_PUBLIC_HEADERS}
   src/mp/proxy.cpp
-  src/mp/util.cpp)
+  $<TARGET_OBJECTS:util>)
 target_include_directories(multiprocess PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -76,7 +81,7 @@ set_target_properties(multiprocess PROPERTIES
     PUBLIC_HEADER "${MP_PUBLIC_HEADERS}")
 install(TARGETS multiprocess EXPORT Multiprocess ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include/mp)
 
-add_executable(mpgen src/mp/gen.cpp)
+add_executable(mpgen src/mp/gen.cpp $<TARGET_OBJECTS:util>)
 target_include_directories(mpgen PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
 target_include_directories(mpgen PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
 target_link_libraries(mpgen PRIVATE CapnProto::capnp)
@@ -84,7 +89,6 @@ target_link_libraries(mpgen PRIVATE CapnProto::capnp-rpc)
 target_link_libraries(mpgen PRIVATE CapnProto::capnpc)
 target_link_libraries(mpgen PRIVATE CapnProto::kj)
 target_link_libraries(mpgen PRIVATE Threads::Threads)
-target_link_libraries(mpgen PRIVATE multiprocess)
 set_target_properties(mpgen PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH TRUE)
 install(TARGETS mpgen EXPORT Multiprocess RUNTIME DESTINATION bin)
