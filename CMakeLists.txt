@@ -58,7 +58,6 @@ set(MP_PUBLIC_HEADERS
   ${MP_PROXY_HDRS}
   include/mp/proxy-io.h
   include/mp/proxy-types.h
-  include/mp/proxy.capnp
   include/mp/proxy.h
   include/mp/util.h)
 
@@ -90,7 +89,9 @@ target_link_libraries(mpgen PRIVATE CapnProto::kj)
 target_link_libraries(mpgen PRIVATE Threads::Threads)
 set_target_properties(mpgen PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH TRUE)
-install(TARGETS mpgen EXPORT Multiprocess RUNTIME DESTINATION bin)
+set_target_properties(mpgen PROPERTIES
+    PUBLIC_HEADER include/mp/proxy.capnp)
+install(TARGETS mpgen EXPORT Multiprocess RUNTIME DESTINATION bin PUBLIC_HEADER DESTINATION include/mp)
 
 configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/config.h")
 configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc" @ONLY)
