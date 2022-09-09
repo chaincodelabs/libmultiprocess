@@ -77,7 +77,15 @@ target_link_libraries(multiprocess PRIVATE CapnProto::kj)
 target_link_libraries(multiprocess PRIVATE CapnProto::kj-async)
 set_target_properties(multiprocess PROPERTIES
     PUBLIC_HEADER "${MP_PUBLIC_HEADERS}")
-install(TARGETS multiprocess EXPORT Multiprocess ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include/mp)
+install(TARGETS multiprocess EXPORT Multiprocess
+  ARCHIVE DESTINATION lib COMPONENT lib
+  PUBLIC_HEADER DESTINATION include/mp COMPONENT lib)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc"
+  DESTINATION "lib/pkgconfig" COMPONENT lib)
+add_custom_target(install-lib
+  COMMAND ${CMAKE_COMMAND} -DCOMPONENT=lib -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
+  VERBATIM)
+add_dependencies(install-lib multiprocess)
 
 add_executable(mpgen src/mp/gen.cpp $<TARGET_OBJECTS:util>)
 target_include_directories(mpgen PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
@@ -95,7 +103,6 @@ install(TARGETS mpgen EXPORT Multiprocess RUNTIME DESTINATION bin PUBLIC_HEADER 
 
 configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/config.h")
 configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc" @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc" DESTINATION "lib/pkgconfig")
 install(FILES "include/mpgen.mk" DESTINATION "include")
 
 install(EXPORT Multiprocess DESTINATION lib/cmake/Multiprocess)
