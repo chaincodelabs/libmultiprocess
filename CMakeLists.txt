@@ -99,11 +99,18 @@ set_target_properties(mpgen PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH TRUE)
 set_target_properties(mpgen PROPERTIES
     PUBLIC_HEADER include/mp/proxy.capnp)
-install(TARGETS mpgen EXPORT Multiprocess RUNTIME DESTINATION bin PUBLIC_HEADER DESTINATION include/mp)
+install(TARGETS mpgen EXPORT Multiprocess
+  RUNTIME DESTINATION bin COMPONENT bin
+  PUBLIC_HEADER DESTINATION include/mp COMPONENT bin)
+install(FILES "include/mpgen.mk"
+  DESTINATION "include" COMPONENT bin)
+add_custom_target(install-bin
+  COMMAND ${CMAKE_COMMAND} -DCOMPONENT=bin -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
+  VERBATIM)
+add_dependencies(install-bin mpgen)
 
 configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/config.h")
 configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc" @ONLY)
-install(FILES "include/mpgen.mk" DESTINATION "include")
 
 install(EXPORT Multiprocess DESTINATION lib/cmake/Multiprocess)
 
