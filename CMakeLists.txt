@@ -58,7 +58,6 @@ set(MP_PUBLIC_HEADERS
   ${MP_PROXY_HDRS}
   include/mp/proxy-io.h
   include/mp/proxy-types.h
-  include/mp/proxy.capnp
   include/mp/proxy.h
   include/mp/util.h)
 
@@ -78,7 +77,15 @@ target_link_libraries(multiprocess PRIVATE CapnProto::kj)
 target_link_libraries(multiprocess PRIVATE CapnProto::kj-async)
 set_target_properties(multiprocess PROPERTIES
     PUBLIC_HEADER "${MP_PUBLIC_HEADERS}")
-install(TARGETS multiprocess EXPORT Multiprocess ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include/mp)
+install(TARGETS multiprocess EXPORT Multiprocess
+  ARCHIVE DESTINATION lib COMPONENT lib
+  PUBLIC_HEADER DESTINATION include/mp COMPONENT lib)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc"
+  DESTINATION "lib/pkgconfig" COMPONENT lib)
+add_custom_target(install-lib
+  COMMAND ${CMAKE_COMMAND} -DCOMPONENT=lib -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
+  VERBATIM)
+add_dependencies(install-lib multiprocess)
 
 add_executable(mpgen src/mp/gen.cpp $<TARGET_OBJECTS:util>)
 target_include_directories(mpgen PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
@@ -90,12 +97,20 @@ target_link_libraries(mpgen PRIVATE CapnProto::kj)
 target_link_libraries(mpgen PRIVATE Threads::Threads)
 set_target_properties(mpgen PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH TRUE)
-install(TARGETS mpgen EXPORT Multiprocess RUNTIME DESTINATION bin)
+set_target_properties(mpgen PROPERTIES
+    PUBLIC_HEADER include/mp/proxy.capnp)
+install(TARGETS mpgen EXPORT Multiprocess
+  RUNTIME DESTINATION bin COMPONENT bin
+  PUBLIC_HEADER DESTINATION include/mp COMPONENT bin)
+install(FILES "include/mpgen.mk"
+  DESTINATION "include" COMPONENT bin)
+add_custom_target(install-bin
+  COMMAND ${CMAKE_COMMAND} -DCOMPONENT=bin -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
+  VERBATIM)
+add_dependencies(install-bin mpgen)
 
 configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/config.h")
 configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc" @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc" DESTINATION "lib/pkgconfig")
-install(FILES "include/mpgen.mk" DESTINATION "include")
 
 install(EXPORT Multiprocess DESTINATION lib/cmake/Multiprocess)
 
