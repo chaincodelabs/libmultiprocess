@@ -30,8 +30,8 @@ struct InvokeContext
 struct ClientInvokeContext : InvokeContext
 {
     ThreadContext& thread_context;
-    ClientInvokeContext(Connection& connection, ThreadContext& thread_context)
-        : InvokeContext{connection}, thread_context{thread_context}
+    ClientInvokeContext(Connection& conn, ThreadContext& thread_context)
+        : InvokeContext{conn}, thread_context{thread_context}
     {
     }
 };
