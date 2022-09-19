@@ -110,6 +110,19 @@ bool BoxedType(const ::capnp::Type& type)
              type.isFloat64() || type.isEnum());
 }
 
+// src_file is path to .capnp file to generate stub code from.
+//
+// src_prefix can be used to generate outputs in a different directory than the
+// source directory. For example if src_file is "/a/b/c/d/file.canp", and
+// src_prefix is "/a/b", then output files will be "c/d/file.capnp.h"
+// "c/d/file.capnp.cxx" "c/d/file.capnp.proxy.h", etc. This is equivalent to
+// the capnp "--src-prefix" option (see "capnp help compile").
+//
+// include_prefix can be used to control relative include paths used in
+// generated files. For example if src_file is "/a/b/c/d/file.canp" and
+// include_prefix is "/a/b/c" include lines like
+// "#include <d/file.capnp.proxy.h>" "#include <d/file.capnp.proxy-types.h>"i
+// will be generated.
 void Generate(kj::StringPtr src_prefix,
     kj::StringPtr include_prefix,
     kj::StringPtr src_file,
@@ -594,7 +607,7 @@ void Generate(kj::StringPtr src_prefix,
 int main(int argc, char** argv)
 {
     if (argc < 3) {
-        fprintf(stderr, "Usage: " PROXY_BIN " SRC_PREFIX SRC_FILE [IMPORT_PATH...]\n");
+        fprintf(stderr, "Usage: " PROXY_BIN " SRC_PREFIX INCLUDE_PREFIX SRC_FILE [IMPORT_PATH...]\n");
         exit(1);
     }
     std::vector<kj::StringPtr> import_paths;
