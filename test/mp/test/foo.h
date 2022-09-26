@@ -19,6 +19,12 @@ struct FooStruct
     std::vector<int> num_set;
 };
 
+struct FooCustom
+{
+    std::string v1;
+    int v2;
+};
+
 class FooCallback
 {
 public:
@@ -46,6 +52,7 @@ public:
     void saveCallback(std::shared_ptr<FooCallback> callback) { m_callback = std::move(callback); }
     int callbackSaved(int arg) { return m_callback->call(arg); }
     int callbackExtended(ExtendedCallback& callback, int arg) { return callback.callExtended(arg); }
+    FooCustom passCustom(FooCustom foo) { return foo; }
     std::shared_ptr<FooCallback> m_callback;
 };
 

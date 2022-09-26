@@ -23,6 +23,7 @@ interface FooInterface $Proxy.wrap("mp::test::FooImplementation") {
     saveCallback @8 (context :Proxy.Context, callback :FooCallback) -> ();
     callbackSaved @9 (context :Proxy.Context, arg: Int32) -> (result :Int32);
     callbackExtended @10 (context :Proxy.Context, callback :ExtendedCallback, arg: Int32) -> (result :Int32);
+    passCustom @11 (arg :FooCustom) -> (result :FooCustom);
 }
 
 interface FooCallback $Proxy.wrap("mp::test::FooCallback") {
@@ -36,6 +37,11 @@ interface ExtendedCallback extends(FooCallback) $Proxy.wrap("mp::test::ExtendedC
 
 struct FooStruct $Proxy.wrap("mp::test::FooStruct") {
     name @0 :Text;
+}
+
+struct FooCustom $Proxy.wrap("mp::test::FooCustom") {
+    v1 @0 :Text;
+    v2 @1 :Int32;
 }
 
 struct Pair(Key, Value) {

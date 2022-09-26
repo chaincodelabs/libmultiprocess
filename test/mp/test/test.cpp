@@ -86,6 +86,13 @@ KJ_TEST("Call FooInterface methods")
     KJ_EXPECT(saved.use_count() == 1);
     KJ_EXPECT(foo->callbackExtended(callback, 11) == 12);
 
+    FooCustom custom_in;
+    custom_in.v1 = "v1";
+    custom_in.v2 = 5;
+    FooCustom custom_out = foo->passCustom(custom_in);
+    KJ_EXPECT(custom_in.v1 == custom_out.v1);
+    KJ_EXPECT(custom_in.v2 == custom_out.v2);
+
     disconnect_client();
     thread.join();
 

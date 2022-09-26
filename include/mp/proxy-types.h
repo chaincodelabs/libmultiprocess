@@ -177,42 +177,81 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
         kj::mv(future.promise));
 }
 
+// Destination parameter type that can be passed to ReadField function as an
+// alternative to ReadDestValue. It allows the ReadField implementation to call
+// the provided emplace_fn function with constructor arguments, so it only needs
+// to determine the arguments, and can let the emplace function decide how to
+// actually construct the read destination object. For example, if a std::string
+// is being read, the ReadField call will call the custom emplace_fn with char*
+// and size_t arguments, and the emplace function can decide whether to call the
+// constructor via the operator or make_shared or emplace or just return a
+// temporary string that is moved from.
 template <typename LocalType, typename EmplaceFn>
 struct ReadDestEmplace
 {
     ReadDestEmplace(TypeList<LocalType>, EmplaceFn&& emplace_fn) : m_emplace_fn(emplace_fn) {}
 
+    //! Simple case. If ReadField impementation calls this construct() method
+    //! with constructor arguments, just pass them on to the emplace function.
     template <typename... Args>
-    auto& construct(Args&&... args)
+    decltype(auto) construct(Args&&... args)
     {
         return m_emplace_fn(std::forward<Args>(args)...);
     }
 
+    //! More complicated case. If ReadField implementation works by calling this
+    //! update() method, adapt it call construct() instead. This requires
+    //! LocalType to have a default constructor to create new object that can be
+    //! passed to update()
     template <typename UpdateFn>
-    void update(UpdateFn&& update_fn)
+    decltype(auto) update(UpdateFn&& update_fn)
     {
         if constexpr (std::is_const_v<std::remove_reference_t<std::invoke_result_t<EmplaceFn>>>) {
+            // If destination type is const, default construct temporary
+            // to pass to update, then call move constructor via construct() to
+            // move from that temporary.
             std::remove_cv_t<LocalType> temp;
             update_fn(temp);
-            construct(std::move(temp));
+            return construct(std::move(temp));
         } else {
-            update_fn(construct());
+            // Default construct object and pass it to update_fn.
+            decltype(auto) temp = construct();
+            update_fn(temp);
+            return temp;
         }
     }
     EmplaceFn& m_emplace_fn;
 };
 
+//! Helper function to create a ReadDestEmplace object that constructs a
+//! temporary, ReadField can return.
+template <typename LocalType>
+auto ReadDestTemp()
+{
+    return ReadDestEmplace{TypeList<LocalType>(), [&](auto&&... args) -> decltype(auto) {
+        return LocalType{std::forward<decltype(args)>(args)...};
+    }};
+}
+
+//! Destination parameter type that can be passed to ReadField function as an
+//! alternative to ReadDestEmplace. Instead of requiring an emplace callback to
+//! construct a new value, it just takes a reference to an existing value and
+//! assigns a new value to it.
 template <typename Value>
 struct ReadDestValue
 {
     ReadDestValue(Value& value) : m_value(value) {}
 
+    //! Simple case. If ReadField works by calling update() just forward arguments to update_fn.
     template <typename UpdateFn>
-    void update(UpdateFn&& update_fn)
+    Value& update(UpdateFn&& update_fn)
     {
         update_fn(m_value);
+        return m_value;
     }
 
+    //! More complicated case. If ReadField works by calling construct(), need
+    //! to reconstruct m_value in place.
     template <typename... Args>
     Value& construct(Args&&... args)
     {
@@ -579,9 +618,9 @@ decltype(auto) CustomReadField(TypeList<LocalType> param,
 }
 
 template <typename... LocalTypes, typename... Args>
-void ReadField(TypeList<LocalTypes...>, Args&&... args)
+decltype(auto) ReadField(TypeList<LocalTypes...>, Args&&... args)
 {
-    CustomReadField(TypeList<RemoveCvRef<LocalTypes>...>(), Priority<2>(), std::forward<Args>(args)...);
+    return CustomReadField(TypeList<RemoveCvRef<LocalTypes>...>(), Priority<2>(), std::forward<Args>(args)...);
 }
 
 template <typename LocalType, typename Input>
