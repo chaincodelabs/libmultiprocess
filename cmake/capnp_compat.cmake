@@ -55,6 +55,6 @@ if (NOT TARGET CapnProto::kj-async AND DEFINED CAPNP_LIB_KJ-ASYNC)
 endif()
 
 cmake_push_check_state()
-set(CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES} ${capnp_INCLUDE_DIRS})
+set(CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES} ${CAPNP_INCLUDE_DIRS})
 check_include_file_cxx("kj/filesystem.h" HAVE_KJ_FILESYSTEM)
 cmake_pop_check_state()

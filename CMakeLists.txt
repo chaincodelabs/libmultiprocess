@@ -52,7 +52,8 @@ capnp_generate_cpp(MP_PROXY_SRCS MP_PROXY_HDRS include/mp/proxy.capnp)
 add_library(util OBJECT src/mp/util.cpp)
 target_include_directories(util PRIVATE
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>)
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
+  ${CAPNP_INCLUDE_DIRECTORY})
 
 set(MP_PUBLIC_HEADERS
   ${MP_PROXY_HDRS}
