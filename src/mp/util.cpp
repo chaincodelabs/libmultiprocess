@@ -128,6 +128,7 @@ int SpawnProcess(int& pid, FdToArgsFn&& fd_to_args)
 void ExecProcess(const std::vector<std::string>& args)
 {
     std::vector<char*> argv;
+    argv.reserve(args.size());
     for (const auto& arg : args) {
         argv.push_back(const_cast<char*>(arg.c_str()));
     }
