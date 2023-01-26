@@ -149,7 +149,7 @@ void Generate(kj::StringPtr src_prefix,
     }
 
     std::string include_base = include_path;
-    std::string::size_type p = include_base.rfind(".");
+    std::string::size_type p = include_base.rfind('.');
     if (p != std::string::npos) include_base.erase(p);
 
     std::vector<std::string> args;
@@ -238,7 +238,7 @@ void Generate(kj::StringPtr src_prefix,
     GetAnnotationText(file_schema.getProto(), NAMESPACE_ANNOTATION_ID, &message_namespace);
 
     std::string base_name = include_base;
-    size_t output_slash = base_name.rfind("/");
+    size_t output_slash = base_name.rfind('/');
     if (output_slash != std::string::npos) {
         base_name.erase(0, output_slash + 1);
     }
