@@ -159,8 +159,8 @@ public:
         logger << "{" << LongThreadName(m_exe_name) << "} ";
         return logger;
     }
-    Logger logPlain() { return Logger(false, m_log_fn); }
-    Logger raise() { return Logger(true, m_log_fn); }
+    Logger logPlain() { return {false, m_log_fn}; }
+    Logger raise() { return {true, m_log_fn}; }
 
     //! Process name included in thread names so combined debug output from
     //! multiple processes is easier to understand.
