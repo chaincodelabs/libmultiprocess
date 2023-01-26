@@ -92,7 +92,7 @@ struct Format
         m_os << value;
         return *this;
     }
-    operator std::string() { return m_os.str(); }
+    operator std::string() const { return m_os.str(); }
     std::ostringstream m_os;
 };
 
