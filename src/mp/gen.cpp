@@ -616,7 +616,7 @@ int main(int argc, char** argv)
     auto cwd = fs->getCurrentPath();
 #endif
     for (size_t i = 4; i < argc; ++i) {
-        import_paths.push_back(argv[i]);
+        import_paths.emplace_back(argv[i]);
     }
     for (const char* path : {CMAKE_INSTALL_PREFIX "/include", capnp_PREFIX "/include"}) {
 #ifdef HAVE_KJ_FILESYSTEM
