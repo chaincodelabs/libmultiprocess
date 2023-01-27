@@ -79,11 +79,14 @@ target_link_libraries(multiprocess PRIVATE CapnProto::kj)
 target_link_libraries(multiprocess PRIVATE CapnProto::kj-async)
 set_target_properties(multiprocess PROPERTIES
     PUBLIC_HEADER "${MP_PUBLIC_HEADERS}")
-install(TARGETS multiprocess EXPORT Multiprocess
+install(TARGETS multiprocess EXPORT libmultiprocess-lib
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT lib
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mp COMPONENT lib)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig COMPONENT lib)
+install(EXPORT libmultiprocess-lib
+  NAMESPACE Libmultiprocess::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake COMPONENT lib)
 add_custom_target(install-lib
   COMMAND ${CMAKE_COMMAND} -DCOMPONENT=lib -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
   VERBATIM)
@@ -101,11 +104,14 @@ set_target_properties(mpgen PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH TRUE)
 set_target_properties(mpgen PROPERTIES
     PUBLIC_HEADER include/mp/proxy.capnp)
-install(TARGETS mpgen EXPORT Multiprocess
+install(TARGETS mpgen EXPORT libmultiprocess-bin
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT bin
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mp COMPONENT bin)
 install(FILES "include/mpgen.mk"
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT bin)
+install(EXPORT libmultiprocess-bin
+  NAMESPACE Libmultiprocess::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake COMPONENT bin)
 add_custom_target(install-bin
   COMMAND ${CMAKE_COMMAND} -DCOMPONENT=bin -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
   VERBATIM)
@@ -113,8 +119,6 @@ add_dependencies(install-bin mpgen)
 
 configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/config.h")
 configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc" @ONLY)
-
-install(EXPORT Multiprocess DESTINATION lib/cmake/Multiprocess)
 
 add_subdirectory(example EXCLUDE_FROM_ALL)
 add_subdirectory(test EXCLUDE_FROM_ALL)
