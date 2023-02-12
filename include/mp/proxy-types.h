@@ -461,7 +461,7 @@ decltype(auto) CustomReadField(TypeList<LocalType>,
     InvokeContext& invoke_context,
     Input&& input,
     ReadDest&& read_dest,
-    typename std::enable_if<std::is_integral<LocalType>::value>::type* enable = 0)
+    typename std::enable_if<std::is_integral<LocalType>::value>::type* enable = nullptr)
 {
     auto value = input.get();
     if (value < std::numeric_limits<LocalType>::min() || value > std::numeric_limits<LocalType>::max()) {
