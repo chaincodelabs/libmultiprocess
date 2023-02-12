@@ -276,7 +276,7 @@ public:
     }
     Connection(EventLoop& loop,
         kj::Own<kj::AsyncIoStream>&& stream_,
-        std::function<::capnp::Capability::Client(Connection&)> make_client)
+        const std::function<::capnp::Capability::Client(Connection&)>& make_client)
         : m_loop(loop), m_stream(kj::mv(stream_)),
           m_network(*m_stream, ::capnp::rpc::twoparty::Side::SERVER, ::capnp::ReaderOptions()),
           m_rpc_system(::capnp::makeRpcServer(m_network, make_client(*this)))

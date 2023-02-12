@@ -48,7 +48,7 @@ public:
     void initThreadMap() {}
     int callback(FooCallback& callback, int arg) { return callback.call(arg); }
     int callbackUnique(std::unique_ptr<FooCallback> callback, int arg) { return callback->call(arg); }
-    int callbackShared(std::shared_ptr<FooCallback> callback, int arg) { return callback->call(arg); }
+    int callbackShared(std::shared_ptr<FooCallback> callback, int arg) { return callback->call(arg); } // NOLINT(performance-unnecessary-value-param)
     void saveCallback(std::shared_ptr<FooCallback> callback) { m_callback = std::move(callback); }
     int callbackSaved(int arg) { return m_callback->call(arg); }
     int callbackExtended(ExtendedCallback& callback, int arg) { return callback.callExtended(arg); }
