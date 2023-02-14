@@ -159,7 +159,7 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
 
     auto thread_client = context_arg.getThread();
     return JoinPromises(server.m_context.connection->m_threads.getLocalServer(thread_client)
-                            .then([&server, invoke, req](kj::Maybe<Thread::Server&> perhaps) {
+                            .then([&server, invoke, req](const kj::Maybe<Thread::Server&>& perhaps) {
                                 KJ_IF_MAYBE(thread_server, perhaps)
                                 {
                                     const auto& thread = static_cast<ProxyServer<Thread>&>(*thread_server);
