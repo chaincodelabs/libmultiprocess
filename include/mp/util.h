@@ -337,7 +337,7 @@ struct AsyncCallable
     }
     AsyncCallable(const AsyncCallable&) = default;
     AsyncCallable(AsyncCallable&&) = default;
-    ~AsyncCallable() noexcept {}
+    ~AsyncCallable() noexcept = default;
     ResultOf<Callable> operator()() const { return (m_callable->value)(); }
     mutable std::shared_ptr<DestructorCatcher<Callable>> m_callable;
 };

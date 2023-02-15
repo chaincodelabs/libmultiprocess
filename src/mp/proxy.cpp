@@ -209,7 +209,7 @@ void EventLoop::removeClient(std::unique_lock<std::mutex>& lock)
         m_cv.notify_all();
         Unlock(lock, [&] {
             char buffer = 0;
-            KJ_SYSCALL(write(m_post_fd, &buffer, 1));
+            KJ_SYSCALL(write(m_post_fd, &buffer, 1)); // NOLINT(bugprone-suspicious-semicolon)
         });
     }
 }
