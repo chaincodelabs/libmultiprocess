@@ -410,13 +410,12 @@ decltype(auto) CustomReadField(TypeList<std::pair<KeyLocalType, ValueLocalType>>
     ReadDest&& read_dest)
 {
     const auto& pair = input.get();
-    using KeyAccessor = typename ProxyStruct<typename Decay<decltype(pair)>::Reads>::KeyAccessor;
-    using ValueAccessor = typename ProxyStruct<typename Decay<decltype(pair)>::Reads>::ValueAccessor;
+    using Accessors = typename ProxyStruct<typename Decay<decltype(pair)>::Reads>::Accessors;
 
-    ReadField(TypeList<KeyLocalType>(), invoke_context, Make<StructField, KeyAccessor>(pair),
+    ReadField(TypeList<KeyLocalType>(), invoke_context, Make<StructField, std::tuple_element_t<0, Accessors>>(pair),
         ReadDestEmplace(TypeList<KeyLocalType>(), [&](auto&&... key_args) -> auto& {
             KeyLocalType* key = nullptr;
-            ReadField(TypeList<ValueLocalType>(), invoke_context, Make<StructField, ValueAccessor>(pair),
+            ReadField(TypeList<ValueLocalType>(), invoke_context, Make<StructField, std::tuple_element_t<1, Accessors>>(pair),
                 ReadDestEmplace(TypeList<ValueLocalType>(), [&](auto&&... value_args) -> auto& {
                     auto& ret = read_dest.construct(std::piecewise_construct, std::forward_as_tuple(key_args...),
                         std::forward_as_tuple(value_args...));
@@ -427,6 +426,7 @@ decltype(auto) CustomReadField(TypeList<std::pair<KeyLocalType, ValueLocalType>>
         }));
 }
 
+// TODO: Should generalize this to work with arbitrary length tuples, not just length 2-tuples.
 template <typename KeyLocalType, typename ValueLocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::tuple<KeyLocalType, ValueLocalType>>,
     Priority<1>,
@@ -437,9 +437,10 @@ decltype(auto) CustomReadField(TypeList<std::tuple<KeyLocalType, ValueLocalType>
     return read_dest.update([&](auto& value) {
         const auto& pair = input.get();
         using Struct = ProxyStruct<typename Decay<decltype(pair)>::Reads>;
-        ReadField(TypeList<KeyLocalType>(), invoke_context, Make<StructField, typename Struct::KeyAccessor>(pair),
+        using Accessors = typename Struct::Accessors;
+        ReadField(TypeList<KeyLocalType>(), invoke_context, Make<StructField, std::tuple_element_t<0, Accessors>>(pair),
             ReadDestValue(std::get<0>(value)));
-        ReadField(TypeList<ValueLocalType>(), invoke_context, Make<StructField, typename Struct::ValueAccessor>(pair),
+        ReadField(TypeList<ValueLocalType>(), invoke_context, Make<StructField, std::tuple_element_t<1, Accessors>>(pair),
             ReadDestValue(std::get<1>(value)));
     });
 }
@@ -930,12 +931,12 @@ void CustomBuildField(TypeList<std::pair<KeyLocalType, ValueLocalType>>,
     Output&& output)
 {
     auto pair = output.init();
-    using KeyAccessor = typename ProxyStruct<typename decltype(pair)::Builds>::KeyAccessor;
-    using ValueAccessor = typename ProxyStruct<typename decltype(pair)::Builds>::ValueAccessor;
-    BuildField(TypeList<KeyLocalType>(), invoke_context, Make<StructField, KeyAccessor>(pair), value.first);
-    BuildField(TypeList<ValueLocalType>(), invoke_context, Make<StructField, ValueAccessor>(pair), value.second);
+    using Accessors = typename ProxyStruct<typename decltype(pair)::Builds>::Accessors;
+    BuildField(TypeList<KeyLocalType>(), invoke_context, Make<StructField, std::tuple_element_t<0, Accessors>>(pair), value.first);
+    BuildField(TypeList<ValueLocalType>(), invoke_context, Make<StructField, std::tuple_element_t<1, Accessors>>(pair), value.second);
 }
 
+// TODO: Should generalize this to work with arbitrary length tuples, not just length 2-tuples.
 template <typename KeyLocalType, typename ValueLocalType, typename Value, typename Output>
 void CustomBuildField(TypeList<std::tuple<KeyLocalType, ValueLocalType>>,
     Priority<1>,
@@ -944,10 +945,9 @@ void CustomBuildField(TypeList<std::tuple<KeyLocalType, ValueLocalType>>,
     Output&& output)
 {
     auto pair = output.init();
-    using KeyAccessor = typename ProxyStruct<typename decltype(pair)::Builds>::KeyAccessor;
-    using ValueAccessor = typename ProxyStruct<typename decltype(pair)::Builds>::ValueAccessor;
-    BuildField(TypeList<KeyLocalType>(), invoke_context, Make<StructField, KeyAccessor>(pair), std::get<0>(value));
-    BuildField(TypeList<ValueLocalType>(), invoke_context, Make<StructField, ValueAccessor>(pair), std::get<1>(value));
+    using Accessors = typename ProxyStruct<typename decltype(pair)::Builds>::Accessors;
+    BuildField(TypeList<KeyLocalType>(), invoke_context, Make<StructField, std::tuple_element_t<0, Accessors>>(pair), std::get<0>(value));
+    BuildField(TypeList<ValueLocalType>(), invoke_context, Make<StructField, std::tuple_element_t<1, Accessors>>(pair), std::get<1>(value));
 }
 
 template <typename LocalType, typename Value, typename Output>

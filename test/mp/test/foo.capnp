@@ -44,7 +44,7 @@ struct FooCustom $Proxy.wrap("mp::test::FooCustom") {
     v2 @1 :Int32;
 }
 
-struct Pair(Key, Value) {
-    key @0 :Key;
-    value @1 :Value;
+struct Pair(T1, T2) {
+    first @0 :T1;
+    second @1 :T2;
 }
