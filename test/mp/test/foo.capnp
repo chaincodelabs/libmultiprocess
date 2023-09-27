@@ -37,6 +37,8 @@ interface ExtendedCallback extends(FooCallback) $Proxy.wrap("mp::test::ExtendedC
 
 struct FooStruct $Proxy.wrap("mp::test::FooStruct") {
     name @0 :Text;
+    setint @1 :List(Int32);
+    vbool @2 :List(Bool);
 }
 
 struct FooCustom $Proxy.wrap("mp::test::FooCustom") {

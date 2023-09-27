@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <set>
 #include <vector>
 
 namespace mp {
@@ -16,7 +17,8 @@ namespace test {
 struct FooStruct
 {
     std::string name;
-    std::vector<int> num_set;
+    std::set<int> setint;
+    std::vector<bool> vbool;
 };
 
 struct FooCustom
