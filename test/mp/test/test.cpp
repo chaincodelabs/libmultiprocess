@@ -43,8 +43,21 @@ KJ_TEST("Call FooInterface methods")
 
     FooStruct in;
     in.name = "name";
+    in.setint.insert(2);
+    in.setint.insert(1);
+    in.vbool.push_back(false);
+    in.vbool.push_back(true);
+    in.vbool.push_back(false);
     FooStruct out = foo->pass(in);
     KJ_EXPECT(in.name == out.name);
+    KJ_EXPECT(in.setint.size() == out.setint.size());
+    for (auto init{in.setint.begin()}, outit{out.setint.begin()}; init != in.setint.end() && outit != out.setint.end(); ++init, ++outit) {
+        KJ_EXPECT(*init == *outit);
+    }
+    KJ_EXPECT(in.vbool.size() == out.vbool.size());
+    for (size_t i = 0; i < in.vbool.size(); ++i) {
+        KJ_EXPECT(in.vbool[i] == out.vbool[i]);
+    }
 
     FooStruct err;
     try {

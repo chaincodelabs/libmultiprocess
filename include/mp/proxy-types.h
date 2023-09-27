@@ -362,6 +362,23 @@ decltype(auto) CustomReadField(TypeList<std::vector<LocalType>>,
     });
 }
 
+template <typename Input, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<std::vector<bool>>,
+                               Priority<1>,
+                               InvokeContext& invoke_context,
+                               Input&& input,
+                               ReadDest&& read_dest)
+{
+    return read_dest.update([&](auto& value) {
+        auto data = input.get();
+        value.clear();
+        value.reserve(data.size());
+        for (auto item : data) {
+            value.push_back(ReadField(TypeList<bool>(), invoke_context, Make<ValueField>(item), ReadDestTemp<bool>()));
+        }
+    });
+}
+
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::set<LocalType>>,
     Priority<1>,
@@ -820,10 +837,8 @@ void CustomBuildField(TypeList<std::vector<LocalType>>,
     // FIXME dedup with set handler below
     auto list = output.init(value.size());
     size_t i = 0;
-    for (auto& elem : value) {
-        BuildField(TypeList<LocalType>(), invoke_context, ListOutput<typename decltype(list)::Builds>(list, i),
-            std::move(elem));
-        ++i;
+    for (auto it = value.begin(); it != value.end(); ++it, ++i) {
+        BuildField(TypeList<LocalType>(), invoke_context, ListOutput<typename decltype(list)::Builds>(list, i), *it);
     }
 }
 
@@ -863,6 +878,11 @@ template <typename Value>
 ::capnp::Void BuildPrimitive(InvokeContext& invoke_context, Value&&, TypeList<::capnp::Void>)
 {
     return {};
+}
+
+inline static bool BuildPrimitive(InvokeContext& invoke_context, std::vector<bool>::reference value, TypeList<bool>)
+{
+    return value;
 }
 
 template <typename LocalType, typename Value>
