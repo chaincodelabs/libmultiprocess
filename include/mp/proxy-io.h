@@ -312,7 +312,7 @@ public:
         // to the EventLoop TaskSet to avoid "Promise callback destroyed itself"
         // error in cases where f deletes this Connection object.
         m_on_disconnect.add(m_network.onDisconnect().then(
-            kj::mvCapture(f, [this](F&& f) { m_loop.m_task_set->add(kj::evalLater(kj::mv(f))); })));
+            [this, f = std::move(f)]() mutable { m_loop.m_task_set->add(kj::evalLater(kj::mv(f))); }));
     }
 
     EventLoop& m_loop;
@@ -547,11 +547,11 @@ template <typename InitInterface, typename InitImpl>
 void _Listen(EventLoop& loop, kj::Own<kj::ConnectionReceiver>&& listener, InitImpl& init)
 {
     auto* ptr = listener.get();
-    loop.m_task_set->add(ptr->accept().then(kj::mvCapture(kj::mv(listener),
-        [&loop, &init](kj::Own<kj::ConnectionReceiver>&& listener, kj::Own<kj::AsyncIoStream>&& stream) {
+    loop.m_task_set->add(ptr->accept().then(
+        [&loop, &init, listener = kj::mv(listener)](kj::Own<kj::AsyncIoStream>&& stream) mutable {
             _Serve<InitInterface>(loop, kj::mv(stream), init);
             _Listen<InitInterface>(loop, kj::mv(listener), init);
-        })));
+        }));
 }
 
 //! Given stream file descriptor and an init object, handle requests on the
