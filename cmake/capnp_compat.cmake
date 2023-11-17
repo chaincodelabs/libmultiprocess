@@ -2,11 +2,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-# CMake target definitions for backwards compatibility with Ubuntu bionic
-# capnproto 0.6.1 package (https://packages.ubuntu.com/bionic/libcapnp-dev)
-
-include(CheckIncludeFileCXX)
-include(CMakePushCheckState)
+# Define capnp_PREFIX if not defined to avoid issue on macos
+# https://github.com/chaincodelabs/libmultiprocess/issues/26
 
 if (NOT DEFINED capnp_PREFIX AND DEFINED CAPNP_INCLUDE_DIRS)
   get_filename_component(capnp_PREFIX "${CAPNP_INCLUDE_DIRS}" DIRECTORY)
@@ -15,6 +12,10 @@ endif()
 if (NOT DEFINED CAPNPC_OUTPUT_DIR)
   set(CAPNPC_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 endif()
+
+# CMake target definitions for backwards compatibility with Ubuntu bionic
+# capnproto 0.6.1 package (https://packages.ubuntu.com/bionic/libcapnp-dev)
+# https://github.com/chaincodelabs/libmultiprocess/issues/27
 
 if (NOT DEFINED CAPNP_LIB_CAPNPC AND DEFINED CAPNP_LIB_CAPNP-RPC)
   string(REPLACE "-rpc" "c" CAPNP_LIB_CAPNPC "${CAPNP_LIB_CAPNP-RPC}")
@@ -53,8 +54,3 @@ if (NOT TARGET CapnProto::kj-async AND DEFINED CAPNP_LIB_KJ-ASYNC)
   add_library(CapnProto::kj-async SHARED IMPORTED)
   set_target_properties(CapnProto::kj-async PROPERTIES IMPORTED_LOCATION "${CAPNP_LIB_KJ-ASYNC}")
 endif()
-
-cmake_push_check_state()
-set(CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES} ${CAPNP_INCLUDE_DIRS})
-check_include_file_cxx("kj/filesystem.h" HAVE_KJ_FILESYSTEM)
-cmake_pop_check_state()

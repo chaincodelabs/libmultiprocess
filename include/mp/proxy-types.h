@@ -102,7 +102,7 @@ void CustomBuildField(TypeList<>,
 template <typename T, typename U>
 kj::Promise<U> JoinPromises(kj::Promise<T>&& prom1, kj::Promise<U>&& prom2)
 {
-    return prom1.then(kj::mvCapture(prom2, [](kj::Promise<U> prom2) { return prom2; }));
+    return prom1.then([prom2 = kj::mv(prom2)]() mutable { return kj::mv(prom2); });
 }
 
 //! PassField override for mp.Context arguments. Return asynchronously and call
@@ -118,10 +118,10 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
     auto future = kj::newPromiseAndFulfiller<typename ServerContext::CallContext>();
     auto& server = server_context.proxy_server;
     int req = server_context.req;
-    auto invoke = MakeAsyncCallable(kj::mvCapture(future.fulfiller,
-        kj::mvCapture(server_context.call_context,
-            [&server, req, fn, args...](typename ServerContext::CallContext call_context,
-                kj::Own<kj::PromiseFulfiller<typename ServerContext::CallContext>> fulfiller) {
+    auto invoke = MakeAsyncCallable(
+        [&server, req, fn, args...,
+         fulfiller = kj::mv(future.fulfiller),
+         call_context = kj::mv(server_context.call_context)]() mutable {
                 const auto& params = call_context.getParams();
                 Context::Reader context_arg = Accessor::get(params);
                 ServerContext server_context{server, call_context, req};
@@ -155,7 +155,7 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
                         fulfiller_dispose->reject(kj::mv(*exception));
                     });
                 }
-            })));
+            });
 
     auto thread_client = context_arg.getThread();
     return JoinPromises(server.m_context.connection->m_threads.getLocalServer(thread_client)
