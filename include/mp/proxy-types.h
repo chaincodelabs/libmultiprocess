@@ -112,9 +112,8 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
     auto& server = server_context.proxy_server;
     int req = server_context.req;
     auto invoke = MakeAsyncCallable(
-        [&server, req, fn, args...,
-         fulfiller = kj::mv(future.fulfiller),
-         call_context = kj::mv(server_context.call_context)]() mutable {
+        [fulfiller = kj::mv(future.fulfiller),
+         call_context = kj::mv(server_context.call_context), &server, req, fn, args...]() mutable {
                 const auto& params = call_context.getParams();
                 Context::Reader context_arg = Accessor::get(params);
                 ServerContext server_context{server, call_context, req};
