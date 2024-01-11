@@ -9,4 +9,4 @@ Description: Multiprocess IPC library
 Version: 0.0
 
 Libs: -L${libdir} -lmultiprocess -L${capnp_prefix}/lib -lcapnp-rpc -lcapnp -lkj-async -lkj -pthread -lpthread
-Cflags: -std=c++17 -I${includedir} -I${capnp_prefix}/include -pthread
+Cflags: -I${includedir} -I${capnp_prefix}/include -pthread
