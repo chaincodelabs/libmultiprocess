@@ -881,7 +881,7 @@ template <typename Value>
     return {};
 }
 
-inline static bool BuildPrimitive(InvokeContext& invoke_context, std::vector<bool>::reference value, TypeList<bool>)
+inline static bool BuildPrimitive(InvokeContext& invoke_context, std::vector<bool>::const_reference value, TypeList<bool>)
 {
     return value;
 }
