@@ -157,9 +157,15 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
                 }
             });
 
+    // Lookup Thread object specified by the client. The specified thread should
+    // be a local Thread::Server object, but it needs to be looked up
+    // asynchronously with getLocalServer().
     auto thread_client = context_arg.getThread();
     return JoinPromises(server.m_context.connection->m_threads.getLocalServer(thread_client)
                             .then([&server, invoke, req](const kj::Maybe<Thread::Server&>& perhaps) {
+                                // Assuming the thread object is found, pass it a pointer to the
+                                // `invoke` lambda above which will invoke the function on that
+                                // thread.
                                 KJ_IF_MAYBE(thread_server, perhaps)
                                 {
                                     const auto& thread = static_cast<ProxyServer<Thread>&>(*thread_server);
@@ -174,6 +180,7 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
                                     throw std::runtime_error("invalid thread handle");
                                 }
                             }),
+        // Wait for the invocation to finish before returning to the caller.
         kj::mv(future.promise));
 }
 
