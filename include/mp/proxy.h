@@ -60,8 +60,35 @@ public:
     ProxyClientBase(typename Interface::Client client, Connection* connection, bool destroy_connection);
     ~ProxyClientBase() noexcept;
 
-    // Methods called during client construction/destruction that can optionally
-    // be defined in capnp interface to trigger the server.
+    // construct/destroy methods called during client construction/destruction
+    // that can optionally be defined in capnp interfaces to invoke code on the
+    // server when proxy client objects are created and destroyed.
+    //
+    // The construct() method is not generally very useful, but can be used to
+    // run custom code on the server automatically when a ProxyClient client is
+    // constructed. The only current use is adding a construct method to Init
+    // interfaces that is called automatically on construction, so client and
+    // server exchange ThreadMap references and set Connection::m_thread_map
+    // values as soon as the Init client is created.
+    //
+    //     construct @0 (threadMap: Proxy.ThreadMap) -> (threadMap: Proxy.ThreadMap);
+    //
+    // But construct() is not necessary for this, thread maps could be passed
+    // through a normal method that is just called explicitly rather than
+    // implicitly.
+    //
+    // The destroy() method is more generally useful than construct(), because
+    // it ensures that the server object will be destroyed synchronously before
+    // the client destructor returns, instead of asynchronously at some
+    // unpredictable time after the client object is already destroyed and
+    // client code has moved on. If the destroy method accepts a Context
+    // parameter like:
+    //
+    //     destroy @0 (context: Proxy.Context) -> ();
+    //
+    // then it will also ensure that the destructor runs on the same thread the
+    // client used to make other RPC calls, instead of running on the server
+    // EventLoop thread and possibly blocking it.
     void construct() {}
     void destroy() {}
 
