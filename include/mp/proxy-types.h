@@ -1450,6 +1450,15 @@ void serverDestroy(Server& server)
     server.m_context.connection->m_loop.log() << "IPC server destroy" << typeid(server).name();
 }
 
+//! Entry point called by generated client code that looks like:
+//!
+//! ProxyClient<ClassName>::M0::Result ProxyClient<ClassName>::methodName(M0::Param<0> arg0, M0::Param<1> arg1) {
+//!     typename M0::Result result;
+//!     clientInvoke(*this, &InterfaceName::Client::methodNameRequest, MakeClientParam<...>(arg0), MakeClientParam<...>(arg1), MakeClientParam<...>(result));
+//!     return result;
+//! }
+//!
+//! Ellipses above are where generated Accessor<> type declarations are inserted.
 template <typename ProxyClient, typename GetRequest, typename... FieldObjs>
 void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, FieldObjs&&... fields)
 {
@@ -1538,6 +1547,13 @@ auto ReplaceVoid(Fn&& fn, Ret&& ret) ->
 
 extern std::atomic<int> server_reqs;
 
+//! Entry point called by generated server code that looks like:
+//!
+//! kj::Promise<void> ProxyServer<InterfaceName>::methodName(CallContext call_context) {
+//!     return serverInvoke(*this, call_context, MakeServerField<0, ...>(MakeServerField<1, ...>(Make<ServerRet, ...>(ServerCall()))));
+//! }
+//!
+//! Ellipses above are where generated Accessor<> type declarations are inserted.
 template <typename Server, typename CallContext, typename Fn>
 kj::Promise<void> serverInvoke(Server& server, CallContext& call_context, Fn fn)
 {
