@@ -114,17 +114,6 @@ struct Priority<0>
 {
 };
 
-//! Function parameter type for discarded argument. Useful to be able to write a
-//! function overload that discards arguments as a normal function instead of a
-//! template function.
-struct Discard
-{
-    template <typename... Args>
-    Discard(Args&&...)
-    {
-    }
-};
-
 //! Return capnp type name with filename prefix removed.
 template <typename T>
 const char* TypeName()
