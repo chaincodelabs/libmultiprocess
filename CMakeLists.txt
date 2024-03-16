@@ -96,7 +96,17 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig COMPONENT lib)
 install(EXPORT libmultiprocess-lib
   NAMESPACE Libmultiprocess::
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake COMPONENT lib)
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT lib)
+include(CMakePackageConfigHelpers)
+configure_package_config_file(
+  ${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessConfig.cmake.in
+  LibmultiprocessConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess
+  NO_SET_AND_CHECK_MACRO)
+install(
+  FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/LibmultiprocessConfig.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT lib)
 add_custom_target(install-lib
   COMMAND ${CMAKE_COMMAND} -DCOMPONENT=lib -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
   VERBATIM)
