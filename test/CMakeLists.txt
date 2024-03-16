@@ -15,46 +15,21 @@ add_custom_target(tests)
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS tests)
 
 if(BUILD_TESTING AND TARGET CapnProto::kj-test)
-  add_custom_command(
-    OUTPUT
-      mp/test/foo.capnp.h
-      mp/test/foo.capnp.c++
-      mp/test/foo.capnp.proxy.h
-      mp/test/foo.capnp.proxy-server.c++
-      mp/test/foo.capnp.proxy-client.c++
-      mp/test/foo.capnp.proxy-types.c++
-      mp/test/foo.capnp.proxy-types.h
-    COMMAND mpgen "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/mp/test/foo.capnp" "${CMAKE_SOURCE_DIR}/include" "${capnp_PREFIX}/include"
-    DEPENDS mp/test/foo.capnp mpgen
-  )
-
   set_property(SOURCE ${MP_PROXY_HDRS} PROPERTY GENERATED 1)
 
   add_executable(mptest
     ${MP_PROXY_HDRS}
-    mp/test/foo.capnp.h
-    mp/test/foo.capnp.c++
-    mp/test/foo.capnp.proxy.h
-    mp/test/foo.capnp.proxy-server.c++
-    mp/test/foo.capnp.proxy-client.c++
-    mp/test/foo.capnp.proxy-types.c++
-    mp/test/foo.capnp.proxy-types.h
     mp/test/foo-types.h
     mp/test/foo.h
     mp/test/test.cpp
   )
-  target_include_directories(mptest PUBLIC
-    ${CAPNP_INCLUDE_DIRECTORY}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
+  include(${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessMacros.cmake)
+  target_capnp_sources(mptest ${CMAKE_CURRENT_SOURCE_DIR} mp/test/foo.capnp
+    IMPORT_PATHS ${CMAKE_SOURCE_DIR}/include
   )
-  target_link_libraries(mptest PRIVATE CapnProto::capnp)
-  target_link_libraries(mptest PRIVATE CapnProto::capnp-rpc)
-  target_link_libraries(mptest PRIVATE CapnProto::kj)
-  target_link_libraries(mptest PRIVATE CapnProto::kj-async)
+  target_include_directories(mptest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   target_link_libraries(mptest PRIVATE CapnProto::kj-test)
   target_link_libraries(mptest PRIVATE Threads::Threads)
-  target_link_libraries(mptest PRIVATE multiprocess)
 
   add_dependencies(tests mptest)
   add_test(NAME mptest COMMAND mptest)
