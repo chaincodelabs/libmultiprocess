@@ -89,12 +89,12 @@ target_link_libraries(multiprocess PRIVATE CapnProto::kj)
 target_link_libraries(multiprocess PRIVATE CapnProto::kj-async)
 set_target_properties(multiprocess PROPERTIES
     PUBLIC_HEADER "${MP_PUBLIC_HEADERS}")
-install(TARGETS multiprocess EXPORT libmultiprocess-lib
+install(TARGETS multiprocess EXPORT LibmultiprocessTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT lib
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mp COMPONENT lib)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig COMPONENT lib)
-install(EXPORT libmultiprocess-lib
+install(EXPORT LibmultiprocessTargets
   NAMESPACE Libmultiprocess::
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT lib)
 include(CMakePackageConfigHelpers)
@@ -125,12 +125,12 @@ set_target_properties(mpgen PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH TRUE)
 set_target_properties(mpgen PROPERTIES
     PUBLIC_HEADER include/mp/proxy.capnp)
-install(TARGETS mpgen EXPORT libmultiprocess-bin
+install(TARGETS mpgen EXPORT LibmultiprocessGenTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT bin
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mp COMPONENT bin)
 install(FILES "include/mpgen.mk"
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT bin)
-install(EXPORT libmultiprocess-bin
+install(EXPORT LibmultiprocessGenTargets
   NAMESPACE Libmultiprocess::
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LibmultiprocessGen COMPONENT bin)
 include(CMakePackageConfigHelpers)
