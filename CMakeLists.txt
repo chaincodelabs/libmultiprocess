@@ -132,7 +132,18 @@ install(FILES "include/mpgen.mk"
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT bin)
 install(EXPORT libmultiprocess-bin
   NAMESPACE Libmultiprocess::
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake COMPONENT bin)
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LibmultiprocessGen COMPONENT bin)
+include(CMakePackageConfigHelpers)
+configure_package_config_file(
+  ${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessGenConfig.cmake.in
+  LibmultiprocessGenConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LibmultiprocessGen
+  NO_SET_AND_CHECK_MACRO)
+install(
+  FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/LibmultiprocessGenConfig.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/LibmultiprocessMacros.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LibmultiprocessGen COMPONENT bin)
 add_custom_target(install-bin
   COMMAND ${CMAKE_COMMAND} -DCOMPONENT=bin -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
   VERBATIM)
