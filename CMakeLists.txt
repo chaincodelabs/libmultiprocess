@@ -77,6 +77,7 @@ add_library(multiprocess STATIC
   ${MP_PUBLIC_HEADERS}
   src/mp/proxy.cpp
   $<TARGET_OBJECTS:util>)
+add_library(Libmultiprocess::multiprocess ALIAS multiprocess)
 target_include_directories(multiprocess PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -102,6 +103,7 @@ add_custom_target(install-lib
 add_dependencies(install-lib multiprocess)
 
 add_executable(mpgen src/mp/gen.cpp $<TARGET_OBJECTS:util>)
+add_executable(Libmultiprocess::mpgen ALIAS mpgen)
 target_include_directories(mpgen PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
 target_include_directories(mpgen PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_link_libraries(mpgen PRIVATE CapnProto::capnp)
