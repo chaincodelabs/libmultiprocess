@@ -23,7 +23,7 @@ if(BUILD_TESTING AND TARGET CapnProto::kj-test)
     mp/test/foo.h
     mp/test/test.cpp
   )
-  include(${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessMacros.cmake)
+  include(${PROJECT_SOURCE_DIR}/cmake/TargetCapnpSources.cmake)
   target_capnp_sources(mptest ${CMAKE_CURRENT_SOURCE_DIR} mp/test/foo.capnp
     IMPORT_PATHS ${CMAKE_SOURCE_DIR}/include
   )

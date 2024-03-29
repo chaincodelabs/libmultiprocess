@@ -1,0 +1,8 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(CapnProto)
+
+include("${CMAKE_CURRENT_LIST_DIR}/Libmultiprocess/LibTargets.cmake")
+
+check_required_components(LibmultiprocessLib)

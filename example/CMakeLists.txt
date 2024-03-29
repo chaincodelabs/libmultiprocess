@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-include(${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessMacros.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/TargetCapnpSources.cmake)
 
 add_executable(mpcalculator
   calculator.cpp
