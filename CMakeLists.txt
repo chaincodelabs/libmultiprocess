@@ -89,24 +89,24 @@ target_link_libraries(multiprocess PRIVATE CapnProto::kj)
 target_link_libraries(multiprocess PRIVATE CapnProto::kj-async)
 set_target_properties(multiprocess PROPERTIES
     PUBLIC_HEADER "${MP_PUBLIC_HEADERS}")
-install(TARGETS multiprocess EXPORT LibmultiprocessTargets
+install(TARGETS multiprocess EXPORT LibTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT lib
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mp COMPONENT lib)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig COMPONENT lib)
-install(EXPORT LibmultiprocessTargets
+install(EXPORT LibTargets
   NAMESPACE Libmultiprocess::
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT lib)
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-  ${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessConfig.cmake.in
-  LibmultiprocessConfig.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess
+  ${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessLibConfig.cmake.in
+  LibmultiprocessLibConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
   NO_SET_AND_CHECK_MACRO)
 install(
   FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/LibmultiprocessConfig.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT lib)
+    ${CMAKE_CURRENT_BINARY_DIR}/LibmultiprocessLibConfig.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake COMPONENT lib)
 add_custom_target(install-lib
   COMMAND ${CMAKE_COMMAND} -DCOMPONENT=lib -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
   VERBATIM)
@@ -125,25 +125,28 @@ set_target_properties(mpgen PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH TRUE)
 set_target_properties(mpgen PROPERTIES
     PUBLIC_HEADER include/mp/proxy.capnp)
-install(TARGETS mpgen EXPORT LibmultiprocessGenTargets
+install(TARGETS mpgen EXPORT BinTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT bin
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mp COMPONENT bin)
 install(FILES "include/mpgen.mk"
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT bin)
-install(EXPORT LibmultiprocessGenTargets
+install(EXPORT BinTargets
   NAMESPACE Libmultiprocess::
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LibmultiprocessGen COMPONENT bin)
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT bin)
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-  ${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessGenConfig.cmake.in
-  LibmultiprocessGenConfig.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LibmultiprocessGen
+  ${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessBinConfig.cmake.in
+  LibmultiprocessBinConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
   NO_SET_AND_CHECK_MACRO)
 install(
   FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/LibmultiprocessGenConfig.cmake
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/LibmultiprocessMacros.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LibmultiprocessGen COMPONENT bin)
+    ${CMAKE_CURRENT_BINARY_DIR}/LibmultiprocessBinConfig.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake COMPONENT bin)
+install(
+  FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/TargetCapnpSources.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT bin)
 add_custom_target(install-bin
   COMMAND ${CMAKE_COMMAND} -DCOMPONENT=bin -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
   VERBATIM)

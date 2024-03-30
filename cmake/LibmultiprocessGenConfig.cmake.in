@@ -1,6 +1,0 @@
-@PACKAGE_INIT@
-
-include("${CMAKE_CURRENT_LIST_DIR}/LibmultiprocessGenTargets.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/LibmultiprocessMacros.cmake")
-
-check_required_components(LibmultiprocessGen)
