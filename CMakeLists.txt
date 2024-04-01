@@ -8,6 +8,9 @@ project("Libmultiprocess" CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
+find_package(CapnProto REQUIRED)
+find_package(Threads REQUIRED)
+
 option(Libmultiprocess_ENABLE_CLANG_TIDY "Run clang-tidy with the compiler." OFF)
 if(Libmultiprocess_ENABLE_CLANG_TIDY)
   find_program(CLANG_TIDY_EXECUTABLE NAMES clang-tidy)
@@ -17,61 +20,30 @@ if(Libmultiprocess_ENABLE_CLANG_TIDY)
   set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXECUTABLE}")
 endif()
 
-include(CMakePushCheckState)
-include(CheckCXXSourceCompiles)
-include(GNUInstallDirs)
-find_package(CapnProto REQUIRED)
-find_package(Threads REQUIRED)
-
 include("cmake/capnp_compat.cmake")
+include("cmake/pthread_checks.cmake")
+include(GNUInstallDirs)
 
-cmake_push_check_state()
-set(CMAKE_REQUIRED_LIBRARIES Threads::Threads)
-check_cxx_source_compiles("
-  #include <pthread.h>
-  int main(int argc, char** argv)
-  {
-    char thread_name[16];
-    return pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
-  }"
-  HAVE_PTHREAD_GETNAME_NP)
+# Generated C++ preprocessor defines
+configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/config.h")
 
-check_cxx_source_compiles("
-  #include <cstdint>
-  #include <pthread.h>
-  int main(int argc, char** argv)
-  {
-    uint64_t tid;
-    pthread_threadid_np(NULL, &tid);
-    return 0;
-  }"
-  HAVE_PTHREAD_THREADID_NP)
-
-check_cxx_source_compiles("
-  #include <pthread.h>
-  #include <pthread_np.h>
-  int main(int argc, char** argv)
-  {
-    return pthread_getthreadid_np();
-  }"
-  HAVE_PTHREAD_GETTHREADID_NP)
-cmake_pop_check_state()
-
+# Generated C++ Capn'Proto schema files
 capnp_generate_cpp(MP_PROXY_SRCS MP_PROXY_HDRS include/mp/proxy.capnp)
 
+# util library
 add_library(util OBJECT src/mp/util.cpp)
 target_include_directories(util PRIVATE
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
   ${CAPNP_INCLUDE_DIRECTORY})
 
+# libmultiprocess.a runtime library
 set(MP_PUBLIC_HEADERS
   ${MP_PROXY_HDRS}
   include/mp/proxy-io.h
   include/mp/proxy-types.h
   include/mp/proxy.h
   include/mp/util.h)
-
 add_library(multiprocess STATIC
   ${MP_PROXY_SRCS}
   ${MP_PUBLIC_HEADERS}
@@ -92,11 +64,6 @@ set_target_properties(multiprocess PROPERTIES
 install(TARGETS multiprocess EXPORT LibTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT lib
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mp COMPONENT lib)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc"
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig COMPONENT lib)
-install(EXPORT LibTargets
-  NAMESPACE Libmultiprocess::
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT lib)
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
   ${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessLibConfig.cmake.in
@@ -107,11 +74,8 @@ install(
   FILES
     ${CMAKE_CURRENT_BINARY_DIR}/LibmultiprocessLibConfig.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake COMPONENT lib)
-add_custom_target(install-lib
-  COMMAND ${CMAKE_COMMAND} -DCOMPONENT=lib -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
-  VERBATIM)
-add_dependencies(install-lib multiprocess)
 
+# mpgen code generator
 add_executable(mpgen src/mp/gen.cpp $<TARGET_OBJECTS:util>)
 add_executable(Libmultiprocess::mpgen ALIAS mpgen)
 target_include_directories(mpgen PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
@@ -128,11 +92,6 @@ set_target_properties(mpgen PROPERTIES
 install(TARGETS mpgen EXPORT BinTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT bin
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mp COMPONENT bin)
-install(FILES "include/mpgen.mk"
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT bin)
-install(EXPORT BinTargets
-  NAMESPACE Libmultiprocess::
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT bin)
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
   ${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessBinConfig.cmake.in
@@ -143,17 +102,40 @@ install(
   FILES
     ${CMAKE_CURRENT_BINARY_DIR}/LibmultiprocessBinConfig.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake COMPONENT bin)
+
+# makefile include to invoke mpgen code generator, for downstream Make projects
+install(FILES "include/mpgen.mk"
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT bin)
+
+# pkg-config module to build against libmultiprocess library, for downstream autoconf projects
+configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig COMPONENT lib)
+
+# cmake include to invoke mpgen code generator, for downstream CMake projects
 install(
   FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/TargetCapnpSources.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT bin)
+
+# CMake target import files, for downstream CMake projects
+install(EXPORT BinTargets
+  NAMESPACE Libmultiprocess::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT bin)
+install(EXPORT LibTargets
+  NAMESPACE Libmultiprocess::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT lib)
+
+# Makefile targets to support "make install-bin" "make install-lib"
 add_custom_target(install-bin
   COMMAND ${CMAKE_COMMAND} -DCOMPONENT=bin -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
   VERBATIM)
 add_dependencies(install-bin mpgen)
+add_custom_target(install-lib
+  COMMAND ${CMAKE_COMMAND} -DCOMPONENT=lib -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
+  VERBATIM)
+add_dependencies(install-lib multiprocess)
 
-configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/config.h")
-configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc" @ONLY)
-
+# Example and test subdirectories
 add_subdirectory(example EXCLUDE_FROM_ALL)
 add_subdirectory(test EXCLUDE_FROM_ALL)
