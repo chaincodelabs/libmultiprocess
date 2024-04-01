@@ -1,0 +1,30 @@
+@PACKAGE_INIT@
+
+# CMake find_package compatible package file, for downstream CMake projects
+#
+# Based on https://cmake.org/cmake/help/latest/guide/importing-exporting/index.html#adding-components
+
+set(_Libmultiprocess_supported_components Bin Lib)
+
+# If no components specified, include all components.
+list(LENGTH Libmultiprocess_FIND_COMPONENTS Libmultiprocess_FIND_COMPONENTS_len)
+if(Libmultiprocess_FIND_COMPONENTS_len EQUAL 0)
+    set(Libmultiprocess_FIND_COMPONENTS ${_Libmultiprocess_supported_components})
+endif()
+
+if ("Bin" IN_LIST Libmultiprocess_FIND_COMPONENTS)
+  include("${CMAKE_CURRENT_LIST_DIR}/TargetCapnpSources.cmake")
+endif()
+
+if ("Lib" IN_LIST Libmultiprocess_FIND_COMPONENTS)
+  include(CMakeFindDependencyMacro)
+  find_dependency(CapnProto)
+endif()
+
+foreach(_comp ${Libmultiprocess_FIND_COMPONENTS})
+  if (NOT _comp IN_LIST _Libmultiprocess_supported_components)
+    set(Libmultiprocess_FOUND False)
+    set(Libmultiprocess_NOT_FOUND_MESSAGE "Unsupported component: ${_comp}")
+  endif()
+  include("${CMAKE_CURRENT_LIST_DIR}/${_comp}Targets.cmake")
+endforeach()
