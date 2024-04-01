@@ -64,16 +64,6 @@ set_target_properties(multiprocess PROPERTIES
 install(TARGETS multiprocess EXPORT LibTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT lib
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mp COMPONENT lib)
-include(CMakePackageConfigHelpers)
-configure_package_config_file(
-  ${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessLibConfig.cmake.in
-  LibmultiprocessLibConfig.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
-  NO_SET_AND_CHECK_MACRO)
-install(
-  FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/LibmultiprocessLibConfig.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake COMPONENT lib)
 
 # mpgen code generator
 add_executable(mpgen src/mp/gen.cpp $<TARGET_OBJECTS:util>)
@@ -92,16 +82,6 @@ set_target_properties(mpgen PROPERTIES
 install(TARGETS mpgen EXPORT BinTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT bin
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mp COMPONENT bin)
-include(CMakePackageConfigHelpers)
-configure_package_config_file(
-  ${PROJECT_SOURCE_DIR}/cmake/LibmultiprocessBinConfig.cmake.in
-  LibmultiprocessBinConfig.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
-  NO_SET_AND_CHECK_MACRO)
-install(
-  FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/LibmultiprocessBinConfig.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake COMPONENT bin)
 
 # makefile include to invoke mpgen code generator, for downstream Make projects
 install(FILES "include/mpgen.mk"
@@ -126,13 +106,28 @@ install(EXPORT LibTargets
   NAMESPACE Libmultiprocess::
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess COMPONENT lib)
 
+# CMake find_package config file, for downstream CMake projects
+include(CMakePackageConfigHelpers)
+configure_package_config_file(
+  ${PROJECT_SOURCE_DIR}/cmake/Config.cmake.in
+  LibmultiprocessConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess
+  NO_SET_AND_CHECK_MACRO)
+install(
+  FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/LibmultiprocessConfig.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Libmultiprocess
+  COMPONENT common)
+
 # Makefile targets to support "make install-bin" "make install-lib"
 add_custom_target(install-bin
   COMMAND ${CMAKE_COMMAND} -DCOMPONENT=bin -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
+  COMMAND ${CMAKE_COMMAND} -DCOMPONENT=common -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
   VERBATIM)
 add_dependencies(install-bin mpgen)
 add_custom_target(install-lib
   COMMAND ${CMAKE_COMMAND} -DCOMPONENT=lib -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
+  COMMAND ${CMAKE_COMMAND} -DCOMPONENT=common -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
   VERBATIM)
 add_dependencies(install-lib multiprocess)
 
