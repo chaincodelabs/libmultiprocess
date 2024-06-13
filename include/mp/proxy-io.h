@@ -395,7 +395,10 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
         // this object after it's already destroyed.
         m_context.connection->removeSyncCleanup(cleanup);
 
-        // Destroy remote object, waiting for it to be deleted server side.
+        // If the capnp interface defines a destroy method, call it to destroy
+        // the remote object, waiting for it to be deleted server side. If the
+        // capnp interface does not define a destroy method, this will just call
+        // an empty stub defined in the ProxyClientBase class and do nothing.
         self().destroy();
 
         // FIXME: Could just invoke removed addCleanup fn here instead of duplicating code
@@ -436,15 +439,31 @@ ProxyServerBase<Interface, Impl>::ProxyServerBase(std::shared_ptr<Impl> impl, Co
     m_context.connection->m_loop.addClient(lock);
 }
 
+//! ProxyServer destructor, called from the EventLoop thread by Cap'n Proto
+//! garbage collection code after there are no more references to this object.
 template <typename Interface, typename Impl>
 ProxyServerBase<Interface, Impl>::~ProxyServerBase()
 {
     if (m_impl) {
-        // If impl is non-null, it means client was not destroyed cleanly (was
-        // killed or disconnected). Since client isn't providing thread to run
-        // destructor on, run asynchronously. Do not run destructor on current
-        // (event loop) thread since destructors could be making IPC calls or
-        // doing expensive cleanup.
+        // If impl is non-null at this point, it means no client is waiting for
+        // the m_impl server object to be destroyed synchronously. This can
+        // happen either if the interface did not define a "destroy" method (see
+        // invokeDestroy method below), or if a destroy method was defined, but
+        // the connection was broken before it could be called.
+        //
+        // In either case, be conservative and run the cleanup on an
+        // asynchronous thread, to avoid destructors or cleanup functions
+        // blocking or deadlocking the current EventLoop thread, since they
+        // could be making IPC calls.
+        //
+        // Technically this is a little too conservative since if the interface
+        // defines a "destroy" method, but the destroy method does not accept a
+        // Context parameter specifying a worker thread, the cleanup method
+        // would run on the EventLoop thread normally (when connection is
+        // unbroken), but will not run on the EventLoop thread now (when
+        // connection is broken). Probably some refactoring of the destructor
+        // and invokeDestroy function is possible to make this cleaner and more
+        // consistent.
         m_context.connection->addAsyncCleanup([impl=std::move(m_impl), c=std::move(m_context.cleanup)]() mutable {
             impl.reset();
             for (auto& cleanup : c) {
@@ -452,10 +471,28 @@ ProxyServerBase<Interface, Impl>::~ProxyServerBase()
             }
         });
     }
+    assert(m_context.cleanup.size() == 0);
     std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
     m_context.connection->m_loop.removeClient(lock);
 }
 
+//! If the capnp interface defined a special "destroy" method, as described the
+//! ProxyClientBase class, this method will be called and synchronously destroy
+//! m_impl before returning to the client.
+//!
+//! If the capnp interface does not define a "destroy" method, this will never
+//! be called and the ~ProxyServerBase destructor will be responsible for
+//! deleting m_impl asynchronously, whenever the ProxyServer object gets garbage
+//! collected by Cap'n Proto.
+//!
+//! This method is called in the same way other proxy server methods are called,
+//! via the serverInvoke function. Basically serverInvoke just calls this as a
+//! substitute for a non-existent m_impl->destroy() method. If the destroy
+//! method has any parameters or return values they will be handled in the
+//! normal way by PassField/ReadField/BuildField functions. Particularly if a
+//! Context.thread parameter was passed, this method will run on the worker
+//! thread specified by the client. Otherwise it will run on the EventLoop
+//! thread, like other server methods without an assigned thread.
 template <typename Interface, typename Impl>
 void ProxyServerBase<Interface, Impl>::invokeDestroy()
 {
