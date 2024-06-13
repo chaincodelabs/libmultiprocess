@@ -60,8 +60,35 @@ public:
     ProxyClientBase(typename Interface::Client client, Connection* connection, bool destroy_connection);
     ~ProxyClientBase() noexcept;
 
-    // Methods called during client construction/destruction that can optionally
-    // be defined in capnp interface to trigger the server.
+    // construct/destroy methods called during client construction/destruction
+    // that can optionally be defined in capnp interfaces to invoke code on the
+    // server when proxy client objects are created and destroyed.
+    //
+    // The construct() method is not generally very useful, but can be used to
+    // run custom code on the server automatically when a ProxyClient client is
+    // constructed. The only current use is adding a construct method to Init
+    // interfaces that is called automatically on construction, so client and
+    // server exchange ThreadMap references and set Connection::m_thread_map
+    // values as soon as the Init client is created.
+    //
+    //     construct @0 (threadMap: Proxy.ThreadMap) -> (threadMap: Proxy.ThreadMap);
+    //
+    // But construct() is not necessary for this, thread maps could be passed
+    // through a normal method that is just called explicitly rather than
+    // implicitly.
+    //
+    // The destroy() method is more generally useful than construct(), because
+    // it ensures that the server object will be destroyed synchronously before
+    // the client destructor returns, instead of asynchronously at some
+    // unpredictable time after the client object is already destroyed and
+    // client code has moved on. If the destroy method accepts a Context
+    // parameter like:
+    //
+    //     destroy @0 (context: Proxy.Context) -> ();
+    //
+    // then it will also ensure that the destructor runs on the same thread the
+    // client used to make other RPC calls, instead of running on the server
+    // EventLoop thread and possibly blocking it.
     void construct() {}
     void destroy() {}
 
@@ -109,20 +136,52 @@ public:
     ProxyContext m_context;
 };
 
-//! Customizable (through template specialization) base class used in generated ProxyServer implementations from
-//! proxy-codegen.cpp.
+//! Customizable (through template specialization) base class which ProxyServer
+//! classes produced by generated code will inherit from. The default
+//! specialization of this class just inherits from ProxyServerBase, but custom
+//! specializations can be defined to control ProxyServer behavior.
+//!
+//! Specifically, it can be useful to specialize this class to add additional
+//! state to ProxyServer classes, for example to cache state between IPC calls.
+//! If this is done, however, care should be taken to ensure that the extra
+//! state can be destroyed without blocking, because ProxyServer destructors are
+//! called from the EventLoop thread, and if they block, it could deadlock the
+//! program. One way to do avoid blocking is to clean up the state by pushing
+//! cleanup callbacks to the m_context.cleanup list, which run after the server
+//! m_impl object is destroyed on the same thread destroying it (which will
+//! either be an IPC worker thread if the ProxyServer is being explicitly
+//! destroyed by a client calling a destroy() method with a Context argument and
+//! Context.thread value set, or the temporary EventLoop::m_async_thread used to
+//! run destructors without blocking the event loop when no-longer used server
+//! objects are garbage collected by Cap'n Proto.) Alternately, if cleanup needs
+//! to run before m_impl is destroyed, the specialization can override
+//! invokeDestroy and destructor methods to do that.
 template <typename Interface, typename Impl>
 struct ProxyServerCustom : public ProxyServerBase<Interface, Impl>
 {
     using ProxyServerBase<Interface, Impl>::ProxyServerBase;
 };
 
-//! Function traits class used to get method parameter and result types in generated ProxyClient implementations from
-//! proxy-codegen.cpp.
+//! Function traits class used to get method parameter and result types, used in
+//! generated ProxyClient and ProxyServer classes produced by gen.cpp to get C++
+//! method type information. The generated code accesses these traits via
+//! intermediate ProxyClientMethodTraits and ProxyServerMethodTraits classes,
+//! which it is possible to specialize to change the way method arguments and
+//! return values are handled.
+//!
+//! Fields of the trait class are:
+//!
+//! Params   - TypeList of C++ ClassName::methodName parameter types
+//! Result   - Return type of ClassName::method
+//! Param<N> - helper to access individual parameters by index number.
+//! Fields   - helper alias that appends Result type to the Params typelist if
+//!            it not void.
 template <class Fn>
 struct FunctionTraits;
 
-//! Specialization of above to extract result and params types.
+//! Specialization of above extracting result and params types assuming the
+//! template argument is a pointer-to-method type,
+//! decltype(&ClassName::methodName)
 template <class _Class, class _Result, class... _Params>
 struct FunctionTraits<_Result (_Class::*const)(_Params...)>
 {
@@ -134,16 +193,20 @@ struct FunctionTraits<_Result (_Class::*const)(_Params...)>
         typename std::conditional<std::is_same<void, Result>::value, Params, TypeList<_Params..., _Result>>::type;
 };
 
-//! Traits class for a method specialized by method parameters.
+//! Traits class for a proxy method, providing the same
+//! Params/Result/Param/Fields described in the FunctionTraits class above, plus
+//! an additional invoke() method that calls the C++ method which is being
+//! proxied, forwarding any arguments.
 //!
-//! Param and Result typedefs can be customized to adjust parameter and return types on client side.
+//! The template argument should be the InterfaceName::MethodNameParams class
+//! (generated by Cap'n Proto) associated with the method.
 //!
-//! Invoke method customized to adjust parameter and return types on server side.
-//!
-//! Normal method calls go through the ProxyMethodTraits struct specialization
-//! below, not this default struct, which is only used if there is no
-//! ProxyMethod::impl method pointer, which is only true for construct/destroy
-//! methods.
+//! Note: The class definition here is just the fallback definition used when
+//! the other specialization below doesn't match. The fallback is only used for
+//! capnp methods which do not have corresponding C++ methods, which in practice
+//! is just the two special construct() and destroy() methods described in \ref
+//! ProxyClientBase. These methods don't have any C++ parameters or return
+//! types, so the trait information below reflects that.
 template <typename MethodParams, typename Enable = void>
 struct ProxyMethodTraits
 {
@@ -157,7 +220,18 @@ struct ProxyMethodTraits
     }
 };
 
-//! Specialization of above.
+//! Specialization of above for proxy methods that have a
+//! ProxyMethod<InterfaceName::MethodNameParams>::impl pointer-to-method
+//! constant defined by generated code. This includes all functions defined in
+//! the capnp interface except any construct() or destroy() methods, that are
+//! assumed not to correspond to real member functions in the C++ class, and
+//! will use the fallback traits definition above. The generated code this
+//! specialization relies on looks like:
+//!
+//! struct ProxyMethod<InterfaceName::MethodNameParams>
+//! {
+//!     static constexpr auto impl = &ClassName::methodName;
+//! };
 template <typename MethodParams>
 struct ProxyMethodTraits<MethodParams, Require<decltype(ProxyMethod<MethodParams>::impl)>>
     : public FunctionTraits<decltype(ProxyMethod<MethodParams>::impl)>

@@ -126,6 +126,23 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
                 Context::Reader context_arg = Accessor::get(params);
                 ServerContext server_context{server, call_context, req};
                 {
+                    // Before invoking the function, store a reference to the
+                    // callbackThread provided by the client in the
+                    // thread_local.request_threads map. This way, if this
+                    // server thread needs to execute any RPCs that call back to
+                    // the client, they will happen on the same client thread
+                    // that is waiting for this function, just like what would
+                    // happen if this were a normal function call made on the
+                    // local stack.
+                    //
+                    // If the request_threads map already has an entry for this
+                    // connection, it will be left unchanged, and it indicates
+                    // that the current thread is an RPC client thread which is
+                    // in the middle of an RPC call, and the current RPC call is
+                    // a nested call from the remote thread handling that RPC
+                    // call. In this case, the callbackThread value should point
+                    // to the same thread already in the map, so there is no
+                    // need to update the map.
                     auto& request_threads = g_thread_context.request_threads;
                     auto request_thread = request_threads.find(server.m_context.connection);
                     if (request_thread == request_threads.end()) {
@@ -136,8 +153,11 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
                                         /* destroy_connection= */ false))
                                 .first;
                     } else {
-                        // If recursive call, avoid remove request_threads map
-                        // entry in KJ_DEFER below.
+                        // The requests_threads map already has an entry for
+                        // this connection, so this must be a recursive call.
+                        // Avoid modifying the map in this case by resetting the
+                        // request_thread iterator, so the KJ_DEFER statement
+                        // below doesn't do anything.
                         request_thread = request_threads.end();
                     }
                     KJ_DEFER(if (request_thread != request_threads.end()) request_threads.erase(request_thread));
@@ -157,9 +177,15 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
                 }
             });
 
+    // Lookup Thread object specified by the client. The specified thread should
+    // be a local Thread::Server object, but it needs to be looked up
+    // asynchronously with getLocalServer().
     auto thread_client = context_arg.getThread();
     return JoinPromises(server.m_context.connection->m_threads.getLocalServer(thread_client)
                             .then([&server, invoke, req](const kj::Maybe<Thread::Server&>& perhaps) {
+                                // Assuming the thread object is found, pass it a pointer to the
+                                // `invoke` lambda above which will invoke the function on that
+                                // thread.
                                 KJ_IF_MAYBE(thread_server, perhaps)
                                 {
                                     const auto& thread = static_cast<ProxyServer<Thread>&>(*thread_server);
@@ -174,6 +200,7 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
                                     throw std::runtime_error("invalid thread handle");
                                 }
                             }),
+        // Wait for the invocation to finish before returning to the caller.
         kj::mv(future.promise));
 }
 
@@ -1423,6 +1450,15 @@ void serverDestroy(Server& server)
     server.m_context.connection->m_loop.log() << "IPC server destroy " << typeid(server).name();
 }
 
+//! Entry point called by generated client code that looks like:
+//!
+//! ProxyClient<ClassName>::M0::Result ProxyClient<ClassName>::methodName(M0::Param<0> arg0, M0::Param<1> arg1) {
+//!     typename M0::Result result;
+//!     clientInvoke(*this, &InterfaceName::Client::methodNameRequest, MakeClientParam<...>(arg0), MakeClientParam<...>(arg1), MakeClientParam<...>(result));
+//!     return result;
+//! }
+//!
+//! Ellipses above are where generated Accessor<> type declarations are inserted.
 template <typename ProxyClient, typename GetRequest, typename... FieldObjs>
 void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, FieldObjs&&... fields)
 {
@@ -1511,6 +1547,13 @@ auto ReplaceVoid(Fn&& fn, Ret&& ret) ->
 
 extern std::atomic<int> server_reqs;
 
+//! Entry point called by generated server code that looks like:
+//!
+//! kj::Promise<void> ProxyServer<InterfaceName>::methodName(CallContext call_context) {
+//!     return serverInvoke(*this, call_context, MakeServerField<0, ...>(MakeServerField<1, ...>(Make<ServerRet, ...>(ServerCall()))));
+//! }
+//!
+//! Ellipses above are where generated Accessor<> type declarations are inserted.
 template <typename Server, typename CallContext, typename Fn>
 kj::Promise<void> serverInvoke(Server& server, CallContext& call_context, Fn fn)
 {
@@ -1526,6 +1569,13 @@ kj::Promise<void> serverInvoke(Server& server, CallContext& call_context, Fn fn)
         using ServerContext = ServerInvokeContext<Server, CallContext>;
         using ArgList = typename ProxyClientMethodTraits<typename Params::Reads>::Params;
         ServerContext server_context{server, call_context, req};
+        // ReplaceVoid is used to support fn.invoke implementations that
+        // execute asynchronously and return promises, as well as
+        // implementations that execute synchronously and return void. The
+        // invoke function will be synchronous by default, but asynchronous if
+        // an mp.Context argument is passed, and the mp.Context PassField
+        // overload returns a promise executing the request in a worker thread
+        // and waiting for it to complete.
         return ReplaceVoid([&]() { return fn.invoke(server_context, ArgList()); },
             [&]() { return kj::Promise<CallContext>(kj::mv(call_context)); })
             .then([&server, req](CallContext call_context) {
