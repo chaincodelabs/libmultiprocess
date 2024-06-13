@@ -107,6 +107,14 @@ Connection::~Connection()
 CleanupIt Connection::addSyncCleanup(std::function<void()> fn)
 {
     std::unique_lock<std::mutex> lock(m_loop.m_mutex);
+    // Add cleanup callbacks to the front of list, so sync cleanup functions run
+    // in LIFO order. This is a good approach because sync cleanup functions are
+    // added as client objects are created, and it is natural to clean up
+    // objects in the reverse order they were created. In practice, however,
+    // order should not be significant because the cleanup callbacks run
+    // synchronously in a single batch when the connection is broken, and they
+    // only reset the connection pointers in the client objects without actually
+    // deleting the client objects.
     return m_sync_cleanup_fns.emplace(m_sync_cleanup_fns.begin(), std::move(fn));
 }
 
@@ -119,7 +127,23 @@ void Connection::removeSyncCleanup(CleanupIt it)
 void Connection::addAsyncCleanup(std::function<void()> fn)
 {
     std::unique_lock<std::mutex> lock(m_loop.m_mutex);
-    m_async_cleanup_fns.emplace(m_async_cleanup_fns.begin(), std::move(fn));
+    // Add async cleanup callbacks to the back of the list. Unlike the sync
+    // cleanup list, this list order is more significant because it determines
+    // the order server objects are destroyed when there is a sudden disconnect,
+    // and it is possible objects may need to be destroyed in a certain order.
+    // This function is called in ProxyServerBase destructors, and since capnp
+    // destroys ProxyServer objects in LIFO order, we should preserve this
+    // order, and add cleanup callbacks to the end of the list so they can be
+    // run starting from the beginning of the list.
+    //
+    // In bitcoin core, running these callbacks in the right order is
+    // particularly important for the wallet process, because it uses blocking
+    // shared_ptrs and requires Chain::Notification pointers owned by the node
+    // process to be destroyed before the WalletLoader objects owned by the node
+    // process, otherwise shared pointer counts of the CWallet objects (which
+    // inherit from Chain::Notification) will not be 1 when WalletLoader
+    // destructor runs and it will wait forever for them to be released.
+    m_async_cleanup_fns.emplace(m_async_cleanup_fns.end(), std::move(fn));
 }
 
 EventLoop::EventLoop(const char* exe_name, LogFn log_fn, void* context)
