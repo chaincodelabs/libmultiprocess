@@ -1434,6 +1434,9 @@ struct CapRequestTraits<::capnp::Request<_Params, _Results>>
     using Results = _Results;
 };
 
+//! Entry point called by all generated ProxyClient destructors. This only logs
+//! the object destruction. The actual cleanup happens in the ProxyClient base
+//! destructor.
 template <typename Client>
 void clientDestroy(Client& client)
 {
