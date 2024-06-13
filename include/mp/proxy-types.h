@@ -1420,7 +1420,7 @@ void clientDestroy(Client& client)
 template <typename Server>
 void serverDestroy(Server& server)
 {
-    server.m_context.connection->m_loop.log() << "IPC server destroy" << typeid(server).name();
+    server.m_context.connection->m_loop.log() << "IPC server destroy " << typeid(server).name();
 }
 
 template <typename ProxyClient, typename GetRequest, typename... FieldObjs>
