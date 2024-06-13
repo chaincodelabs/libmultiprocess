@@ -136,8 +136,26 @@ public:
     ProxyContext m_context;
 };
 
-//! Customizable (through template specialization) base class used in generated ProxyServer implementations from
-//! proxy-codegen.cpp.
+//! Customizable (through template specialization) base class which ProxyServer
+//! classes produced by generated code will inherit from. The default
+//! specialization of this class just inherits from ProxyServerBase, but custom
+//! specializations can be defined to control ProxyServer behavior.
+//!
+//! Specifically, it can be useful to specialize this class to add additional
+//! state to ProxyServer classes, for example to cache state between IPC calls.
+//! If this is done, however, care should be taken to ensure that the extra
+//! state can be destroyed without blocking, because ProxyServer destructors are
+//! called from the EventLoop thread, and if they block, it could deadlock the
+//! program. One way to do avoid blocking is to clean up the state by pushing
+//! cleanup callbacks to the m_context.cleanup list, which run after the server
+//! m_impl object is destroyed on the same thread destroying it (which will
+//! either be an IPC worker thread if the ProxyServer is being explicitly
+//! destroyed by a client calling a destroy() method with a Context argument and
+//! Context.thread value set, or the temporary EventLoop::m_async_thread used to
+//! run destructors without blocking the event loop when no-longer used server
+//! objects are garbage collected by Cap'n Proto.) Alternately, if cleanup needs
+//! to run before m_impl is destroyed, the specialization can override
+//! invokeDestroy and destructor methods to do that.
 template <typename Interface, typename Impl>
 struct ProxyServerCustom : public ProxyServerBase<Interface, Impl>
 {
