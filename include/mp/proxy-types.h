@@ -1049,8 +1049,8 @@ void BuildOne(TypeList<LocalType> param,
 template <size_t index, typename LocalType, typename Value, typename Output>
 void BuildOne(TypeList<LocalType> param,
     InvokeContext& invoke_context,
-    Output& output,
-    Value& value,
+    Output&& output,
+    Value&& value,
     typename std::enable_if<index == ProxyType<LocalType>::fields>::type* enable = nullptr)
 {
 }

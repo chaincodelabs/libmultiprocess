@@ -106,6 +106,8 @@ KJ_TEST("Call FooInterface methods")
     KJ_EXPECT(custom_in.v1 == custom_out.v1);
     KJ_EXPECT(custom_in.v2 == custom_out.v2);
 
+    foo->passEmpty(FooEmpty{});
+
     disconnect_client();
     thread.join();
 
