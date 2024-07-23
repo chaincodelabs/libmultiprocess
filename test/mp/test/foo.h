@@ -27,6 +27,10 @@ struct FooCustom
     int v2;
 };
 
+struct FooEmpty
+{
+};
+
 class FooCallback
 {
 public:
@@ -55,6 +59,7 @@ public:
     int callbackSaved(int arg) { return m_callback->call(arg); }
     int callbackExtended(ExtendedCallback& callback, int arg) { return callback.callExtended(arg); }
     FooCustom passCustom(FooCustom foo) { return foo; }
+    FooEmpty passEmpty(FooEmpty foo) { return foo; }
     std::shared_ptr<FooCallback> m_callback;
 };
 
