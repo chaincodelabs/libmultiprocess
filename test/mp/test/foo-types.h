@@ -28,6 +28,45 @@ decltype(auto) CustomReadField(TypeList<FooCustom>, Priority<1>, InvokeContext& 
 }
 
 } // namespace test
+
+inline void CustomBuildMessage(InvokeContext& invoke_context,
+                        const test::FooMessage& src,
+                        test::messages::FooMessage::Builder&& builder)
+{
+    builder.setMessage(src.message + " build");
+}
+
+inline void CustomReadMessage(InvokeContext& invoke_context,
+                       const test::messages::FooMessage::Reader& reader,
+                       test::FooMessage& dest)
+{
+    dest.message = std::string{reader.getMessage()} + " read";
+}
+
+inline void CustomBuildMessage(InvokeContext& invoke_context,
+                        const test::FooMutable& src,
+                        test::messages::FooMutable::Builder&& builder)
+{
+    builder.setMessage(src.message + " build");
+}
+
+inline void CustomReadMessage(InvokeContext& invoke_context,
+                       const test::messages::FooMutable::Reader& reader,
+                       test::FooMutable& dest)
+{
+    dest.message = std::string{reader.getMessage()} + " read";
+}
+
+inline void CustomPassMessage(InvokeContext& invoke_context,
+                       const test::messages::FooMutable::Reader& reader,
+                       test::messages::FooMutable::Builder builder,
+                       std::function<void(test::FooMutable&)>&& fn)
+{
+    test::FooMutable mut;
+    mut.message = std::string{reader.getMessage()} + " pass";
+    fn(mut);
+    builder.setMessage(mut.message + " return");
+}
 } // namespace mp
 
 #endif // MP_TEST_FOO_TYPES_H

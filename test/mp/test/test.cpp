@@ -108,6 +108,16 @@ KJ_TEST("Call FooInterface methods")
 
     foo->passEmpty(FooEmpty{});
 
+    FooMessage message1;
+    message1.message = "init";
+    FooMessage message2{foo->passMessage(message1)};
+    KJ_EXPECT(message2.message == "init build read call build read");
+
+    FooMutable mut;
+    mut.message = "init";
+    foo->passMutable(mut);
+    KJ_EXPECT(mut.message == "init build pass call return read");
+
     disconnect_client();
     thread.join();
 

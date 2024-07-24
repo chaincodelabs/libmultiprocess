@@ -662,6 +662,19 @@ decltype(auto) CustomReadField(TypeList<LocalType> param,
     return read_dest.update([&](auto& value) { ReadOne<0>(param, invoke_context, input, value); });
 }
 
+//! Overload CustomReadField to serialize objects that have CustomReadMessage
+//! overloads. Defining a CustomReadMessage overload is simpler than defining a
+//! CustomReadField overload because it only requires defining a normal
+//! function, not a template function, but less flexible.
+template <typename LocalType, typename Reader, typename ReadDest>
+decltype(auto) CustomReadField(TypeList<LocalType>, Priority<2>, InvokeContext& invoke_context, Reader&& reader,
+                               ReadDest&& read_dest,
+                               decltype(CustomReadMessage(invoke_context, reader.get(),
+                                                          std::declval<LocalType&>()))* enable = nullptr)
+{
+    return read_dest.update([&](auto& value) { if (reader.has()) CustomReadMessage(invoke_context, reader.get(), value); });
+}
+
 template <typename... LocalTypes, typename... Args>
 decltype(auto) ReadField(TypeList<LocalTypes...>, Args&&... args)
 {
@@ -717,6 +730,17 @@ template <typename... Values>
 bool CustomHasValue(InvokeContext& invoke_context, Values&&... value)
 {
     return true;
+}
+
+//! Overload CustomBuildField to serialize objects that have CustomBuildMessage
+//! overloads. Defining a CustomBuildMessage overload is simpler than defining a
+//! CustomBuildField overload because it only requires defining a normal
+//! function, not a template function, but less flexible.
+template <typename LocalType, typename Value, typename Output>
+void CustomBuildField(TypeList<LocalType>, Priority<2>, InvokeContext& invoke_context, Value&& value, Output&& output,
+                      decltype(CustomBuildMessage(invoke_context, value, std::move(output.get())))* enable = nullptr)
+{
+    CustomBuildMessage(invoke_context, value, std::move(output.init()));
 }
 
 template <typename... LocalTypes, typename Context, typename... Values, typename Output>
@@ -1389,10 +1413,61 @@ struct ServerExcept : Parent
     }
 };
 
+//! Helper for CustomPassField below. Call Accessor::get method if it has one,
+//! otherwise return capnp::Void.
+template <typename Accessor, typename Message>
+decltype(auto) MaybeGet(Message&& message, decltype(Accessor::get(message))* enable = nullptr)
+{
+    return Accessor::get(message);
+}
+
+template <typename Accessor>
+::capnp::Void MaybeGet(...)
+{
+    return {};
+}
+
+//! Helper for CustomPassField below. Call Accessor::init method if it has one,
+//! otherwise do nothing.
+template <typename Accessor, typename Message>
+decltype(auto) MaybeInit(Message&& message, decltype(Accessor::get(message))* enable = nullptr)
+{
+    return Accessor::init(message);
+}
+
+template <typename Accessor>
+::capnp::Void MaybeInit(...)
+{
+    return {};
+}
+
+//! Overload CustomPassField to serialize objects that have CustomPassMessage
+//! overloads. Defining a CustomPassMessage overload is simpler than defining a
+//! CustomPassField overload because it only requires defining a normal
+//! function, not a template function, but less flexible.
+template <typename Accessor, typename... LocalTypes, typename ServerContext, typename Fn, typename... Args>
+auto CustomPassField(TypeList<LocalTypes...>, ServerContext& server_context, Fn&& fn, Args&&... args)
+    -> decltype(CustomPassMessage(server_context, MaybeGet<Accessor>(server_context.call_context.getParams()),
+                                  MaybeGet<Accessor>(server_context.call_context.getResults()), nullptr))
+{
+    CustomPassMessage(server_context, MaybeGet<Accessor>(server_context.call_context.getParams()),
+                      MaybeInit<Accessor>(server_context.call_context.getResults()),
+                      [&](LocalTypes... param) { fn.invoke(server_context, std::forward<Args>(args)..., param...); });
+}
+
 template <class Accessor>
 void CustomPassField();
 
 //! PassField override calling CustomPassField function, if it exists.
+//! Defining a CustomPassField or CustomPassMessage overload is useful for
+//! input/output parameters. If an overload is not defined these parameters will
+//! just be deserialized on the server side with ReadField into a temporary
+//! variable, then the server method will be called passing the temporary
+//! variable as a parameter, then the temporary variable will be serialized and
+//! sent back to the client with BuildField. But if a PassField or PassMessage
+//! overload is defined, the overload is called with a callback to invoke and
+//! pass parameters to the server side function, and run arbitrary code before
+//! and after invoking the function.
 template <typename Accessor, typename... Args>
 auto PassField(Priority<2>, Args&&... args) -> decltype(CustomPassField<Accessor>(std::forward<Args>(args)...))
 {

@@ -25,6 +25,8 @@ interface FooInterface $Proxy.wrap("mp::test::FooImplementation") {
     callbackExtended @10 (context :Proxy.Context, callback :ExtendedCallback, arg: Int32) -> (result :Int32);
     passCustom @11 (arg :FooCustom) -> (result :FooCustom);
     passEmpty @12 (arg :FooEmpty) -> (result :FooEmpty);
+    passMessage @13 (arg :FooMessage) -> (result :FooMessage);
+    passMutable @14 (arg :FooMutable) -> (arg :FooMutable);
 }
 
 interface FooCallback $Proxy.wrap("mp::test::FooCallback") {
@@ -48,6 +50,14 @@ struct FooCustom $Proxy.wrap("mp::test::FooCustom") {
 }
 
 struct FooEmpty $Proxy.wrap("mp::test::FooEmpty") {
+}
+
+struct FooMessage {
+    message @0 :Text;
+}
+
+struct FooMutable {
+    message @0 :Text;
 }
 
 struct Pair(T1, T2) {

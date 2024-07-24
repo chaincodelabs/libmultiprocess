@@ -31,6 +31,16 @@ struct FooEmpty
 {
 };
 
+struct FooMessage
+{
+    std::string message;
+};
+
+struct FooMutable
+{
+    std::string message;
+};
+
 class FooCallback
 {
 public:
@@ -60,6 +70,8 @@ public:
     int callbackExtended(ExtendedCallback& callback, int arg) { return callback.callExtended(arg); }
     FooCustom passCustom(FooCustom foo) { return foo; }
     FooEmpty passEmpty(FooEmpty foo) { return foo; }
+    FooMessage passMessage(FooMessage foo) { foo.message += " call"; return foo; }
+    void passMutable(FooMutable& foo) { foo.message += " call"; }
     std::shared_ptr<FooCallback> m_callback;
 };
 
