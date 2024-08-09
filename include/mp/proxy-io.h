@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <functional>
+#include <optional>
 #include <map>
 #include <memory>
 #include <sstream>
@@ -60,6 +61,18 @@ struct ProxyClient<Thread> : public ProxyClientBase<Thread, ::capnp::Void>
     using ProxyClientBase::ProxyClientBase;
     // https://stackoverflow.com/questions/22357887/comparing-two-mapiterators-why-does-it-need-the-copy-constructor-of-stdpair
     ProxyClient(const ProxyClient&) = delete;
+    ~ProxyClient();
+
+    void setCleanup(std::function<void()> cleanup);
+
+    //! Cleanup function to run when the connection is closed. If the Connection
+    //! gets destroyed before this ProxyClient<Thread> object, this cleanup
+    //! callback lets it destroy this object and remove its entry in the
+    //! thread's request_threads or callback_threads map (after resetting
+    //! m_cleanup so the destructor does not try to access it). But if this
+    //! object gets destroyed before the Connection, there's no need to run the
+    //! cleanup function and the destructor will unregister it.
+    std::optional<CleanupIt> m_cleanup;
 };
 
 template <>
@@ -503,6 +516,14 @@ void ProxyServerBase<Interface, Impl>::invokeDestroy()
     m_context.cleanup.clear();
 }
 
+using ConnThreads = std::map<Connection*, ProxyClient<Thread>>;
+using ConnThread = ConnThreads::iterator;
+
+// Retrieve ProxyClient<Thread> object associated with this connection from a
+// map, or create a new one and insert it into the map. Return map iterator and
+// inserted bool.
+std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, Connection* connection, std::function<Thread::Client()> make_thread);
+
 struct ThreadContext
 {
     //! Identifying string for debug.
@@ -517,7 +538,7 @@ struct ThreadContext
     //! `callbackThread` argument it passes in the request, used by the server
     //! in case it needs to make callbacks into the client that need to execute
     //! while the client is waiting. This will be set to a local thread object.
-    std::map<Connection*, ProxyClient<Thread>> callback_threads;
+    ConnThreads callback_threads;
 
     //! When client is making a request to a server, this is the `thread`
     //! argument it passes in the request, used to control which thread on
@@ -526,7 +547,7 @@ struct ThreadContext
     //! by makeThread. If a client call is being made from a thread currently
     //! handling a server request, this will be set to the `callbackThread`
     //! request thread argument passed in that request.
-    std::map<Connection*, ProxyClient<Thread>> request_threads;
+    ConnThreads request_threads;
 
     //! Whether this thread is a capnp event loop thread. Not really used except
     //! to assert false if there's an attempt to execute a blocking operation
