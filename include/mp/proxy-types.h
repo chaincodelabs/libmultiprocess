@@ -62,36 +62,33 @@ void CustomBuildField(TypeList<>,
 {
     auto& connection = invoke_context.connection;
     auto& thread_context = invoke_context.thread_context;
-    auto& request_threads = thread_context.request_threads;
-    auto& callback_threads = thread_context.callback_threads;
 
-    auto callback_thread = callback_threads.find(&connection);
-    if (callback_thread == callback_threads.end()) {
-        callback_thread =
-            callback_threads
-                .emplace(std::piecewise_construct, std::forward_as_tuple(&connection),
-                    std::forward_as_tuple(
-                        connection.m_threads.add(kj::heap<ProxyServer<Thread>>(thread_context, std::thread{})),
-                        &connection, /* destroy_connection= */ false))
-                .first;
-    }
+    // Create local Thread::Server object corresponding to the current thread
+    // and pass a Thread::Client reference to it in the Context.callbackThread
+    // field so the function being called can make callbacks to this thread.
+    // Also store the Thread::Client reference in the callback_threads map so
+    // future calls over this connection can reuse it.
+    auto [callback_thread, _]{SetThread(
+        thread_context.callback_threads, thread_context.waiter->m_mutex, &connection,
+        [&] { return connection.m_threads.add(kj::heap<ProxyServer<Thread>>(thread_context, std::thread{})); })};
 
-    auto request_thread = request_threads.find(&connection);
-    if (request_thread == request_threads.end()) {
-        // This code will only run if IPC client call is being made for the
-        // first time on a new thread. After the first call, subsequent calls
+    // Call remote ThreadMap.makeThread function so server will create a
+    // dedicated worker thread to run function calls from this thread. Store the
+    // Thread::Client reference it returns in the request_threads map.
+    auto make_request_thread{[&]{
+        // This code will only run if an IPC client call is being made for the
+        // first time on this thread. After the first call, subsequent calls
         // will use the existing request thread. This code will also never run at
         // all if the current thread is a request thread created for a different
         // IPC client, because in that case PassField code (below) will have set
         // request_thread to point to the calling thread.
         auto request = connection.m_thread_map.makeThreadRequest();
         request.setName(thread_context.thread_name);
-        request_thread =
-            request_threads
-                .emplace(std::piecewise_construct, std::forward_as_tuple(&connection),
-                    std::forward_as_tuple(request.send().getResult(), &connection, /* destroy_connection= */ false))
-                .first; // Nonblocking due to capnp request pipelining.
-    }
+        return request.send().getResult(); // Nonblocking due to capnp request pipelining.
+    }};
+    auto [request_thread, _1]{SetThread(
+        thread_context.request_threads, thread_context.waiter->m_mutex,
+        &connection, make_request_thread)};
 
     auto context = output.init();
     context.setThread(request_thread->second.m_client);
@@ -143,24 +140,23 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
                     // call. In this case, the callbackThread value should point
                     // to the same thread already in the map, so there is no
                     // need to update the map.
-                    auto& request_threads = g_thread_context.request_threads;
-                    auto request_thread = request_threads.find(server.m_context.connection);
-                    if (request_thread == request_threads.end()) {
-                        request_thread =
-                            g_thread_context.request_threads
-                                .emplace(std::piecewise_construct, std::forward_as_tuple(server.m_context.connection),
-                                    std::forward_as_tuple(context_arg.getCallbackThread(), server.m_context.connection,
-                                        /* destroy_connection= */ false))
-                                .first;
-                    } else {
-                        // The requests_threads map already has an entry for
-                        // this connection, so this must be a recursive call.
-                        // Avoid modifying the map in this case by resetting the
-                        // request_thread iterator, so the KJ_DEFER statement
-                        // below doesn't do anything.
-                        request_thread = request_threads.end();
-                    }
-                    KJ_DEFER(if (request_thread != request_threads.end()) request_threads.erase(request_thread));
+                    auto& thread_context = g_thread_context;
+                    auto& request_threads = thread_context.request_threads;
+                    auto [request_thread, inserted]{SetThread(
+                        request_threads, thread_context.waiter->m_mutex,
+                        server.m_context.connection,
+                        [&] { return context_arg.getCallbackThread(); })};
+
+                    // If an entry was inserted into the requests_threads map,
+                    // remove it after calling fn.invoke. If an entry was not
+                    // inserted, one already existed, meaning this must be a
+                    // recursive call (IPC call calling back to the caller which
+                    // makes another IPC call), so avoid modifying the map.
+                    auto erase_thread{inserted ? request_thread : request_threads.end()};
+                    KJ_DEFER(if (erase_thread != request_threads.end()) {
+                        std::unique_lock<std::mutex> lock(thread_context.waiter->m_mutex);
+                        request_threads.erase(erase_thread);
+                    });
                     fn.invoke(server_context, args...);
                 }
                 KJ_IF_MAYBE(exception, kj::runCatchingExceptions([&]() {

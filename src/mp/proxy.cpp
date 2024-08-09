@@ -262,6 +262,40 @@ void EventLoop::startAsyncThread(std::unique_lock<std::mutex>& lock)
     }
 }
 
+std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, Connection* connection, std::function<Thread::Client()> make_thread)
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    auto thread = threads.find(connection);
+    if (thread != threads.end()) return {thread, false};
+    thread = threads.emplace(
+        std::piecewise_construct, std::forward_as_tuple(connection),
+        std::forward_as_tuple(make_thread(), connection, /* destroy_connection= */ false)).first;
+    thread->second.setCleanup([&threads, &mutex, thread] {
+        // Connection is being destroyed before thread client is, so reset
+        // thread client m_cleanup member so thread client destructor does not
+        // try unregister this callback after connection is destroyed.
+        thread->second.m_cleanup.reset();
+        // Remove connection pointer about to be destroyed from the map
+        std::unique_lock<std::mutex> lock(mutex);
+        threads.erase(thread);
+    });
+    return {thread, true};
+}
+
+ProxyClient<Thread>::~ProxyClient()
+{
+    if (m_cleanup) {
+        m_context.connection->removeSyncCleanup(*m_cleanup);
+    }
+}
+
+void ProxyClient<Thread>::setCleanup(std::function<void()> cleanup)
+{
+    assert(cleanup);
+    assert(!m_cleanup);
+    m_cleanup = m_context.connection->addSyncCleanup(cleanup);
+}
+
 ProxyServer<Thread>::ProxyServer(ThreadContext& thread_context, std::thread&& thread)
     : m_thread_context(thread_context), m_thread(std::move(thread))
 {
