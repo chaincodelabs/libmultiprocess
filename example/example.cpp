@@ -39,10 +39,6 @@ int main(int argc, char** argv)
     std::promise<mp::EventLoop*> promise;
     std::thread loop_thread([&] {
         mp::EventLoop loop("mpexample", LogPrint);
-        {
-            std::unique_lock<std::mutex> lock(loop.m_mutex);
-            loop.addClient(lock);
-        }
         promise.set_value(&loop);
         loop.loop();
     });
