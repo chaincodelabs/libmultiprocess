@@ -49,8 +49,9 @@ int main(int argc, char** argv)
     auto calc = calc_init->makeCalculator(printer_init->makePrinter());
     while (true) {
         std::string eqn;
-        std::cout << "Enter the equation: ";
+        std::cout << "Enter the equation, or \"exit\" to quit: ";
         std::getline(std::cin, eqn);
+        if (eqn == "exit") break;
         calc->solveEquation(eqn);
     }
     calc.reset();
@@ -58,5 +59,7 @@ int main(int argc, char** argv)
     mp::WaitProcess(calc_pid);
     printer_init.reset();
     mp::WaitProcess(printer_pid);
+    loop_thread.join();
+    std::cout << "Bye!" << std::endl;
     return 0;
 }
