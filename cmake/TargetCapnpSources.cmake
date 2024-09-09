@@ -64,6 +64,7 @@ function(target_capnp_sources target include_prefix)
     message(FATAL_ERROR "Target 'Libmultiprocess::mpgen' does not exist.")
   endif()
 
+  set(generated_headers "")
   foreach(capnp_file IN LISTS TCS_UNPARSED_ARGUMENTS)
     add_custom_command(
       OUTPUT ${capnp_file}.c++ ${capnp_file}.h ${capnp_file}.proxy-client.c++ ${capnp_file}.proxy-types.h ${capnp_file}.proxy-server.c++ ${capnp_file}.proxy-types.c++ ${capnp_file}.proxy.h
@@ -77,6 +78,8 @@ function(target_capnp_sources target include_prefix)
       ${CMAKE_CURRENT_BINARY_DIR}/${capnp_file}.proxy-server.c++
       ${CMAKE_CURRENT_BINARY_DIR}/${capnp_file}.proxy-types.c++
     )
+
+    list(APPEND generated_headers ${capnp_file}.h)
   endforeach()
 
   # Translate include_prefix from a source path to a binary path and add it as a
@@ -91,4 +94,11 @@ function(target_capnp_sources target include_prefix)
   if(TARGET Libmultiprocess::multiprocess)
     target_link_libraries(${target} PRIVATE Libmultiprocess::multiprocess)
   endif()
+
+  # Add a custom target that can be specified as a dependency of c++ targets
+  # that include generated headers. It can be necessary to specify these
+  # dependencies explicitly because while cmake detect dependencies of non
+  # generated files on generated headers, it does not reliably detect
+  # dependencies of generated headers on other generated headers.
+  add_custom_target("${target}_headers" DEPENDS ${generated_headers})
 endfunction()
