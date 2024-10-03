@@ -48,6 +48,12 @@ void LoggingErrorHandler::taskFailed(kj::Exception&& exception)
 
 Connection::~Connection()
 {
+    // Shut down RPC system first, since this will garbage collect Server
+    // objects that were not freed before the connection was closed, some of
+    // which may call addAsyncCleanup and add more cleanup callbacks which can
+    // run below.
+    m_rpc_system.reset();
+
     // ProxyClient cleanup handlers are in sync list, and ProxyServer cleanup
     // handlers are in the async list.
     //

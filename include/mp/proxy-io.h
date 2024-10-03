@@ -333,7 +333,7 @@ public:
     LoggingErrorHandler m_error_handler{m_loop};
     kj::TaskSet m_on_disconnect{m_error_handler};
     ::capnp::TwoPartyVatNetwork m_network;
-    ::capnp::RpcSystem<::capnp::rpc::twoparty::VatId> m_rpc_system;
+    std::optional<::capnp::RpcSystem<::capnp::rpc::twoparty::VatId>> m_rpc_system;
 
     // ThreadMap interface client, used to create a remote server thread when an
     // client IPC call is being made for the first time from a new thread.
@@ -567,7 +567,7 @@ std::unique_ptr<ProxyClient<InitInterface>> ConnectStream(EventLoop& loop, int f
         auto stream =
             loop.m_io_context.lowLevelProvider->wrapSocketFd(fd, kj::LowLevelAsyncIoProvider::TAKE_OWNERSHIP);
         connection = std::make_unique<Connection>(loop, kj::mv(stream));
-        init_client = connection->m_rpc_system.bootstrap(ServerVatId().vat_id).castAs<InitInterface>();
+        init_client = connection->m_rpc_system->bootstrap(ServerVatId().vat_id).castAs<InitInterface>();
         Connection* connection_ptr = connection.get();
         connection->onDisconnect([&loop, connection_ptr] {
             loop.log() << "IPC client: unexpected network disconnect.";
