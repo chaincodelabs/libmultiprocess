@@ -20,6 +20,8 @@ if(Libmultiprocess_ENABLE_CLANG_TIDY)
   set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXECUTABLE}")
 endif()
 
+option(Libmultiprocess_INSTALL_PKGCONFIG_FILE "Install pkg-config module to build against libmultiprocess library." ON)
+
 include("cmake/capnp_compat.cmake")
 include("cmake/pthread_checks.cmake")
 include(GNUInstallDirs)
@@ -88,9 +90,11 @@ install(FILES "include/mpgen.mk"
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT bin)
 
 # pkg-config module to build against libmultiprocess library, for downstream autoconf projects
-configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc" @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc"
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig COMPONENT lib)
+if(Libmultiprocess_INSTALL_PKGCONFIG_FILE)
+  configure_file(pkgconfig/libmultiprocess.pc.in "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc" @ONLY)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libmultiprocess.pc"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig COMPONENT lib)
+endif()
 
 # cmake include to invoke mpgen code generator, for downstream CMake projects
 install(
