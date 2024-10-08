@@ -152,10 +152,19 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
                     // inserted, one already existed, meaning this must be a
                     // recursive call (IPC call calling back to the caller which
                     // makes another IPC call), so avoid modifying the map.
-                    auto erase_thread{inserted ? request_thread : request_threads.end()};
-                    KJ_DEFER(if (erase_thread != request_threads.end()) {
+                    const bool erase_thread{inserted};
+                    KJ_DEFER(if (erase_thread) {
                         std::unique_lock<std::mutex> lock(thread_context.waiter->m_mutex);
-                        request_threads.erase(erase_thread);
+                        // Call erase here with a Connection* argument instead
+                        // of an iterator argument, because the `request_thread`
+                        // iterator may be invalid if the connection is closed
+                        // during this function call. More specifically, the
+                        // iterator may be invalid because SetThread adds a
+                        // cleanup callback to the Connection destructor that
+                        // erases the thread from the map, and also because the
+                        // ProxyServer<Thread> destructor calls
+                        // request_threads.clear().
+                        request_threads.erase(server.m_context.connection);
                     });
                     fn.invoke(server_context, args...);
                 }

@@ -277,6 +277,11 @@ std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, 
         std::piecewise_construct, std::forward_as_tuple(connection),
         std::forward_as_tuple(make_thread(), connection, /* destroy_connection= */ false)).first;
     thread->second.setCleanup([&threads, &mutex, thread] {
+        // Note: it is safe to use the `thread` iterator in this cleanup
+        // function, because the iterator would only be invalid if the map entry
+        // was removed, and if the map entry is removed the ProxyClient<Thread>
+        // destructor unregisters the cleanup.
+
         // Connection is being destroyed before thread client is, so reset
         // thread client m_cleanup member so thread client destructor does not
         // try unregister this callback after connection is destroyed.
