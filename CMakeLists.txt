@@ -8,6 +8,8 @@ project("Libmultiprocess" CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
+include("cmake/compat_find.cmake")
+
 find_package(CapnProto REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -20,7 +22,7 @@ if(Libmultiprocess_ENABLE_CLANG_TIDY)
   set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXECUTABLE}")
 endif()
 
-include("cmake/capnp_compat.cmake")
+include("cmake/compat_config.cmake")
 include("cmake/pthread_checks.cmake")
 include(GNUInstallDirs)
 

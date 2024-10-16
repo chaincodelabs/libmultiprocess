@@ -2,6 +2,9 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+# compat_config.cmake -- compatibility workarounds meant to be included after
+# cmake find_package() calls are made, before configuring the ebuild
+
 # Define capnp_PREFIX if not defined to avoid issue on macos
 # https://github.com/chaincodelabs/libmultiprocess/issues/26
 
