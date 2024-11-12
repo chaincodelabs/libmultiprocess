@@ -963,6 +963,9 @@ LocalType BuildPrimitive(InvokeContext& invoke_context,
     TypeList<LocalType>,
     typename std::enable_if<std::is_enum<Value>::value>::type* enable = nullptr)
 {
+    using E = std::make_unsigned_t<std::underlying_type_t<Value>>;
+    using T = std::make_unsigned_t<LocalType>;
+    static_assert(std::numeric_limits<T>::max() >= std::numeric_limits<E>::max(), "mismatched integral/enum types");
     return static_cast<LocalType>(value);
 }
 
