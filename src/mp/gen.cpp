@@ -357,7 +357,8 @@ void Generate(kj::StringPtr src_prefix,
             client << "public ProxyClientCustom<" << message_namespace << "::" << node_name << ", "
                    << proxied_class_type << ">\n{\n";
             client << "public:\n";
-            client << "    using ProxyClientCustom::ProxyClientCustom;\n";
+            client << "    template <typename... Args>\n";
+            client << "    ProxyClient(Args&&... args) : ProxyClientCustom(std::forward<Args>(args)...) { construct(); }\n";
             client << "    ~ProxyClient();\n";
 
             std::ostringstream server;
