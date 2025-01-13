@@ -432,7 +432,6 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
         });
     }
     });
-    self().construct();
 }
 
 template <typename Interface, typename Impl>
