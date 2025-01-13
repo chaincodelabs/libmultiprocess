@@ -21,6 +21,8 @@ struct FooStruct
     std::vector<bool> vbool;
 };
 
+enum class FooEnum : int { ONE = 1, TWO = 2, };
+
 struct FooCustom
 {
     std::string v1;
@@ -72,6 +74,7 @@ public:
     FooEmpty passEmpty(FooEmpty foo) { return foo; }
     FooMessage passMessage(FooMessage foo) { foo.message += " call"; return foo; }
     void passMutable(FooMutable& foo) { foo.message += " call"; }
+    FooEnum passEnum(FooEnum foo) { return foo; }
     std::shared_ptr<FooCallback> m_callback;
 };
 
