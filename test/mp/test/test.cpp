@@ -122,7 +122,7 @@ KJ_TEST("Call FooInterface methods")
     thread.join();
 
     bool destroyed = false;
-    foo->m_context.cleanup.emplace_front([&destroyed]{ destroyed = true; });
+    foo->m_context.cleanup_fns.emplace_front([&destroyed]{ destroyed = true; });
     foo.reset();
     KJ_EXPECT(destroyed);
 }
