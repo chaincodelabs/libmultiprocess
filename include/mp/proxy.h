@@ -56,6 +56,13 @@ struct ProxyContext
 
 //! Base class for generated ProxyClient classes that implement a C++ interface
 //! and forward calls to a capnp interface.
+//
+//! @note: All ProxyClient subclasses that inherit from this are responsible for
+//! calling cleanup() in their destructors. The ProxyClientBase destructor
+//! cannot call cleanup() itself, because it runs too late after the ProxyClient
+//! subclass is destroyed, when the cleanup callback that is run would trigger
+//! C++ undefined behavior by calling self() and using a pointer to a partially
+//! destroyed object.
 template <typename Interface_, typename Impl_>
 class ProxyClientBase : public Impl_
 {
@@ -64,7 +71,7 @@ public:
     using Impl = Impl_;
 
     ProxyClientBase(typename Interface::Client client, Connection* connection, bool destroy_connection);
-    ~ProxyClientBase() noexcept;
+    ~ProxyClientBase() noexcept = default;
 
     // construct/destroy methods called during client construction/destruction
     // that can optionally be defined in capnp interfaces to invoke code on the
@@ -99,6 +106,7 @@ public:
     void destroy() {}
 
     ProxyClient<Interface>& self() { return static_cast<ProxyClient<Interface>&>(*this); }
+    void cleanup() { CleanupRun(m_context.cleanup_fns); }
 
     typename Interface::Client m_client;
     ProxyContext m_context;

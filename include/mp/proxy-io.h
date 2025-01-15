@@ -435,12 +435,6 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
 }
 
 template <typename Interface, typename Impl>
-ProxyClientBase<Interface, Impl>::~ProxyClientBase() noexcept
-{
-    CleanupRun(m_context.cleanup_fns);
-}
-
-template <typename Interface, typename Impl>
 ProxyServerBase<Interface, Impl>::ProxyServerBase(std::shared_ptr<Impl> impl, Connection& connection)
     : m_impl(std::move(impl)), m_context(&connection)
 {

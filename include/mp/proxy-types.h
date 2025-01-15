@@ -1532,17 +1532,18 @@ struct CapRequestTraits<::capnp::Request<_Params, _Results>>
     using Results = _Results;
 };
 
-//! Entry point called by all generated ProxyClient destructors. This only logs
-//! the object destruction. The actual cleanup happens in the ProxyClient base
-//! destructor.
+//! Entry point called by all generated ProxyClient destructors.
 template <typename Client>
 void clientDestroy(Client& client)
 {
+    // Log that ProxyClient object is being destroyed.
     if (client.m_context.connection) {
         client.m_context.connection->m_loop.log() << "IPC client destroy " << typeid(client).name();
     } else {
         KJ_LOG(INFO, "IPC interrupted client destroy", typeid(client).name());
     }
+    // Call ProxyClientBase cleanup.
+    client.cleanup();
 }
 
 template <typename Server>

@@ -295,9 +295,14 @@ std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, 
 
 ProxyClient<Thread>::~ProxyClient()
 {
+    // If thread is being destroyed before connection is destroyed, remove the
+    // cleanup callback that was registered to handle the connection being
+    // destroyed before the thread being destroyed.
     if (m_cleanup_it) {
         m_context.connection->removeSyncCleanup(*m_cleanup_it);
     }
+    // Call ProxyClientBase cleanup.
+    cleanup();
 }
 
 void ProxyClient<Thread>::setCleanup(std::function<void()> fn)
