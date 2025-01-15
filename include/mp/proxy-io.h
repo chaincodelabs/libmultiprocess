@@ -63,16 +63,16 @@ struct ProxyClient<Thread> : public ProxyClientBase<Thread, ::capnp::Void>
     ProxyClient(const ProxyClient&) = delete;
     ~ProxyClient();
 
-    void setCleanup(std::function<void()> cleanup);
+    void setCleanup(std::function<void()> fn);
 
     //! Cleanup function to run when the connection is closed. If the Connection
     //! gets destroyed before this ProxyClient<Thread> object, this cleanup
     //! callback lets it destroy this object and remove its entry in the
     //! thread's request_threads or callback_threads map (after resetting
-    //! m_cleanup so the destructor does not try to access it). But if this
+    //! m_cleanup_it so the destructor does not try to access it). But if this
     //! object gets destroyed before the Connection, there's no need to run the
     //! cleanup function and the destructor will unregister it.
-    std::optional<CleanupIt> m_cleanup;
+    std::optional<CleanupIt> m_cleanup_it;
 };
 
 template <>
@@ -379,7 +379,7 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
     }
 
     // Handler for the connection getting destroyed before this client object.
-    auto cleanup = m_context.connection->addSyncCleanup([this]() {
+    auto cleanup_it = m_context.connection->addSyncCleanup([this]() {
         // Release client capability by move-assigning to temporary.
         {
             typename Interface::Client(std::move(self().m_client));
@@ -402,11 +402,11 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
     // The first case is handled here when m_context.connection is not null. The
     // second case is handled by the cleanup function, which sets m_context.connection to
     // null so nothing happens here.
-    m_context.cleanup.emplace_front([this, destroy_connection, cleanup]{
+    m_context.cleanup_fns.emplace_front([this, destroy_connection, cleanup_it]{
     if (m_context.connection) {
         // Remove cleanup callback so it doesn't run and try to access
         // this object after it's already destroyed.
-        m_context.connection->removeSyncCleanup(cleanup);
+        m_context.connection->removeSyncCleanup(cleanup_it);
 
         // If the capnp interface defines a destroy method, call it to destroy
         // the remote object, waiting for it to be deleted server side. If the
@@ -437,9 +437,7 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
 template <typename Interface, typename Impl>
 ProxyClientBase<Interface, Impl>::~ProxyClientBase() noexcept
 {
-    for (auto& cleanup : m_context.cleanup) {
-        cleanup();
-    }
+    CleanupRun(m_context.cleanup_fns);
 }
 
 template <typename Interface, typename Impl>
@@ -476,14 +474,12 @@ ProxyServerBase<Interface, Impl>::~ProxyServerBase()
         // connection is broken). Probably some refactoring of the destructor
         // and invokeDestroy function is possible to make this cleaner and more
         // consistent.
-        m_context.connection->addAsyncCleanup([impl=std::move(m_impl), c=std::move(m_context.cleanup)]() mutable {
+        m_context.connection->addAsyncCleanup([impl=std::move(m_impl), fns=std::move(m_context.cleanup_fns)]() mutable {
             impl.reset();
-            for (auto& cleanup : c) {
-                cleanup();
-            }
+            CleanupRun(fns);
         });
     }
-    assert(m_context.cleanup.size() == 0);
+    assert(m_context.cleanup_fns.size() == 0);
     std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
     m_context.connection->m_loop.removeClient(lock);
 }
@@ -509,10 +505,7 @@ template <typename Interface, typename Impl>
 void ProxyServerBase<Interface, Impl>::invokeDestroy()
 {
     m_impl.reset();
-    for (auto& cleanup : m_context.cleanup) {
-        cleanup();
-    }
-    m_context.cleanup.clear();
+    CleanupRun(m_context.cleanup_fns);
 }
 
 using ConnThreads = std::map<Connection*, ProxyClient<Thread>>;
