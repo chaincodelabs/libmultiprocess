@@ -357,8 +357,7 @@ void Generate(kj::StringPtr src_prefix,
             client << "public ProxyClientCustom<" << message_namespace << "::" << node_name << ", "
                    << proxied_class_type << ">\n{\n";
             client << "public:\n";
-            client << "    template <typename... Args>\n";
-            client << "    ProxyClient(Args&&... args) : ProxyClientCustom(std::forward<Args>(args)...) { construct(); }\n";
+            client << "    using ProxyClientCustom::ProxyClientCustom;\n";
             client << "    ~ProxyClient();\n";
 
             std::ostringstream server;
@@ -531,18 +530,22 @@ void Generate(kj::StringPtr src_prefix,
                     server_invoke_end << ")";
                 }
 
+                std::string static_str{is_construct || is_destroy ? "static " : ""};
+                std::string super_str{is_construct || is_destroy ? "Super& super" : ""};
+                std::string self_str{is_construct || is_destroy ? "super" : "*this"};
+
                 client << "    using M" << method_ordinal << " = ProxyClientMethodTraits<" << method_prefix
                        << "Params>;\n";
-                client << "    typename M" << method_ordinal << "::Result " << method_name << "("
-                       << client_args.str() << ")";
+                client << "    " << static_str << "typename M" << method_ordinal << "::Result " << method_name << "("
+                       << super_str << client_args.str() << ")";
                 client << ";\n";
                 def_client << "ProxyClient<" << message_namespace << "::" << node_name << ">::M" << method_ordinal
                            << "::Result ProxyClient<" << message_namespace << "::" << node_name << ">::" << method_name
-                           << "(" << client_args.str() << ") {\n";
+                           << "(" << super_str << client_args.str() << ") {\n";
                 if (has_result) {
                     def_client << "    typename M" << method_ordinal << "::Result result;\n";
                 }
-                def_client << "    clientInvoke(*this, &" << message_namespace << "::" << node_name
+                def_client << "    clientInvoke(" << self_str << ", &" << message_namespace << "::" << node_name
                            << "::Client::" << method_name << "Request" << client_invoke.str() << ");\n";
                 if (has_result) def_client << "    return result;\n";
                 def_client << "}\n";

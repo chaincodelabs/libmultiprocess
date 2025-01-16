@@ -382,7 +382,7 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
     auto cleanup = m_context.connection->addSyncCleanup([this]() {
         // Release client capability by move-assigning to temporary.
         {
-            typename Interface::Client(std::move(self().m_client));
+            typename Interface::Client(std::move(m_client));
         }
         {
             std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
@@ -412,13 +412,13 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
         // the remote object, waiting for it to be deleted server side. If the
         // capnp interface does not define a destroy method, this will just call
         // an empty stub defined in the ProxyClientBase class and do nothing.
-        self().destroy();
+        Sub::destroy(*this);
 
         // FIXME: Could just invoke removed addCleanup fn here instead of duplicating code
         m_context.connection->m_loop.sync([&]() {
             // Release client capability by move-assigning to temporary.
             {
-                typename Interface::Client(std::move(self().m_client));
+                typename Interface::Client(std::move(m_client));
             }
             {
                 std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
@@ -432,6 +432,7 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
         });
     }
     });
+    Sub::construct(*this);
 }
 
 template <typename Interface, typename Impl>

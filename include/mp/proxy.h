@@ -56,6 +56,8 @@ class ProxyClientBase : public Impl_
 public:
     using Interface = Interface_;
     using Impl = Impl_;
+    using Sub = ProxyClient<Interface>;
+    using Super = ProxyClientBase<Interface, Impl>;
 
     ProxyClientBase(typename Interface::Client client, Connection* connection, bool destroy_connection);
     ~ProxyClientBase() noexcept;
@@ -89,10 +91,8 @@ public:
     // then it will also ensure that the destructor runs on the same thread the
     // client used to make other RPC calls, instead of running on the server
     // EventLoop thread and possibly blocking it.
-    void construct() {}
-    void destroy() {}
-
-    ProxyClient<Interface>& self() { return static_cast<ProxyClient<Interface>&>(*this); }
+    static void construct(Super&) {}
+    static void destroy(Super&) {}
 
     typename Interface::Client m_client;
     ProxyContext m_context;
