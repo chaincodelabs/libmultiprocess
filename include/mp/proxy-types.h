@@ -141,43 +141,6 @@ struct ReadDestUpdate
     Value& m_value;
 };
 
-template <size_t index, typename LocalType, typename Input, typename Value>
-void ReadOne(TypeList<LocalType> param,
-    InvokeContext& invoke_context,
-    Input&& input,
-    Value&& value,
-    typename std::enable_if<index != ProxyType<LocalType>::fields>::type* enable = nullptr)
-{
-    using Index = std::integral_constant<size_t, index>;
-    using Struct = typename ProxyType<LocalType>::Struct;
-    using Accessor = typename std::tuple_element<index, typename ProxyStruct<Struct>::Accessors>::type;
-    const auto& struc = input.get();
-    auto&& field_value = value.*ProxyType<LocalType>::get(Index());
-    ReadField(TypeList<RemoveCvRef<decltype(field_value)>>(), invoke_context, Make<StructField, Accessor>(struc),
-        ReadDestUpdate(field_value));
-    ReadOne<index + 1>(param, invoke_context, input, value);
-}
-
-template <size_t index, typename LocalType, typename Input, typename Value>
-void ReadOne(TypeList<LocalType> param,
-    InvokeContext& invoke_context,
-    Input& input,
-    Value& value,
-    typename std::enable_if<index == ProxyType<LocalType>::fields>::type* enable = nullptr)
-{
-}
-
-template <typename LocalType, typename Input, typename ReadDest>
-decltype(auto) CustomReadField(TypeList<LocalType> param,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    ReadDest&& read_dest,
-    typename ProxyType<LocalType>::Struct* enable = nullptr)
-{
-    return read_dest.update([&](auto& value) { ReadOne<0>(param, invoke_context, input, value); });
-}
-
 //! Overload CustomReadField to serialize objects that have CustomReadMessage
 //! overloads. Defining a CustomReadMessage overload is simpler than defining a
 //! CustomReadField overload because it only requires defining a normal
@@ -315,42 +278,6 @@ template <typename LocalType, typename Value, typename Output>
 void CustomBuildField(TypeList<LocalType>, Priority<0>, InvokeContext& invoke_context, Value&& value, Output&& output)
 {
     output.set(BuildPrimitive(invoke_context, std::forward<Value>(value), TypeList<decltype(output.get())>()));
-}
-
-template <size_t index, typename LocalType, typename Value, typename Output>
-void BuildOne(TypeList<LocalType> param,
-    InvokeContext& invoke_context,
-    Output&& output,
-    Value&& value,
-    typename std::enable_if < index<ProxyType<LocalType>::fields>::type * enable = nullptr)
-{
-    using Index = std::integral_constant<size_t, index>;
-    using Struct = typename ProxyType<LocalType>::Struct;
-    using Accessor = typename std::tuple_element<index, typename ProxyStruct<Struct>::Accessors>::type;
-    auto&& field_output = Make<StructField, Accessor>(output);
-    auto&& field_value = value.*ProxyType<LocalType>::get(Index());
-    BuildField(TypeList<Decay<decltype(field_value)>>(), invoke_context, field_output, field_value);
-    BuildOne<index + 1>(param, invoke_context, output, value);
-}
-
-template <size_t index, typename LocalType, typename Value, typename Output>
-void BuildOne(TypeList<LocalType> param,
-    InvokeContext& invoke_context,
-    Output&& output,
-    Value&& value,
-    typename std::enable_if<index == ProxyType<LocalType>::fields>::type* enable = nullptr)
-{
-}
-
-template <typename LocalType, typename Value, typename Output>
-void CustomBuildField(TypeList<LocalType> local_type,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Value&& value,
-    Output&& output,
-    typename ProxyType<LocalType>::Struct* enable = nullptr)
-{
-    BuildOne<0>(local_type, invoke_context, output.init(), value);
 }
 
 //! PassField override for callable interface reference arguments.
