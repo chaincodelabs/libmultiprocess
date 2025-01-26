@@ -141,51 +141,6 @@ struct ReadDestUpdate
     Value& m_value;
 };
 
-template <typename Interface, typename Impl>
-std::unique_ptr<Impl> MakeProxyClient(InvokeContext& context, typename Interface::Client&& client)
-{
-    return std::make_unique<ProxyClient<Interface>>(
-        std::move(client), &context.connection, /* destroy_connection= */ false);
-}
-
-template <typename Interface, typename Impl>
-std::unique_ptr<Impl> CustomMakeProxyClient(InvokeContext& context, typename Interface::Client&& client)
-{
-    return MakeProxyClient<Interface, Impl>(context, kj::mv(client));
-}
-
-template <typename LocalType, typename Input, typename ReadDest>
-decltype(auto) CustomReadField(TypeList<std::unique_ptr<LocalType>>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    ReadDest&& read_dest,
-    typename Decay<decltype(input.get())>::Calls* enable = nullptr)
-{
-    using Interface = typename Decay<decltype(input.get())>::Calls;
-    if (input.has()) {
-        return read_dest.construct(
-                                   CustomMakeProxyClient<Interface, LocalType>(invoke_context, std::move(input.get())));
-    }
-    return read_dest.construct();
-}
-
-template <typename LocalType, typename Input, typename ReadDest>
-decltype(auto) CustomReadField(TypeList<std::shared_ptr<LocalType>>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    ReadDest&& read_dest,
-    typename Decay<decltype(input.get())>::Calls* enable = nullptr)
-{
-    using Interface = typename Decay<decltype(input.get())>::Calls;
-    if (input.has()) {
-        return read_dest.construct(
-            CustomMakeProxyClient<Interface, LocalType>(invoke_context, std::move(input.get())));
-    }
-    return read_dest.construct();
-}
-
 // ProxyCallFn class is needed because c++11 doesn't support auto lambda parameters.
 // It's equivalent c++14: [invoke_context](auto&& params) {
 // invoke_context->call(std::forward<decltype(params)>(params)...)
@@ -345,62 +300,6 @@ void CustomBuildField(TypeList<std::function<FnR(FnParams...)>>,
             std::make_shared<Callback>(std::forward<Value>(value)), invoke_context.connection));
     }
 }
-
-template <typename Interface, typename Impl>
-kj::Own<typename Interface::Server> MakeProxyServer(InvokeContext& context, std::shared_ptr<Impl> impl)
-{
-    return kj::heap<ProxyServer<Interface>>(std::move(impl), context.connection);
-}
-
-template <typename Interface, typename Impl>
-kj::Own<typename Interface::Server> CustomMakeProxyServer(InvokeContext& context, std::shared_ptr<Impl>&& impl)
-{
-    return MakeProxyServer<Interface, Impl>(context, std::move(impl));
-}
-
-template <typename Impl, typename Value, typename Output>
-void CustomBuildField(TypeList<std::unique_ptr<Impl>>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Value&& value,
-    Output&& output,
-    typename Decay<decltype(output.get())>::Calls* enable = nullptr)
-{
-    if (value) {
-        using Interface = typename decltype(output.get())::Calls;
-        output.set(CustomMakeProxyServer<Interface, Impl>(invoke_context, std::shared_ptr<Impl>(value.release())));
-    }
-}
-
-template <typename Impl, typename Value, typename Output>
-void CustomBuildField(TypeList<std::shared_ptr<Impl>>,
-    Priority<2>,
-    InvokeContext& invoke_context,
-    Value&& value,
-    Output&& output,
-    typename Decay<decltype(output.get())>::Calls* enable = nullptr)
-{
-    if (value) {
-        using Interface = typename decltype(output.get())::Calls;
-        output.set(CustomMakeProxyServer<Interface, Impl>(invoke_context, std::move(value)));
-    }
-}
-
-template <typename Impl, typename Output>
-void CustomBuildField(TypeList<Impl&>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Impl& value,
-    Output&& output,
-    typename decltype(output.get())::Calls* enable = nullptr)
-{
-    // Disable deleter so proxy server object doesn't attempt to delete the
-    // wrapped implementation when the proxy client is destroyed or
-    // disconnected.
-    using Interface = typename decltype(output.get())::Calls;
-    output.set(CustomMakeProxyServer<Interface, Impl>(invoke_context, std::shared_ptr<Impl>(&value, [](Impl*){})));
-}
-
 // Adapter to let BuildField overloads methods work set & init list elements as
 // if they were fields of a struct. If BuildField is changed to use some kind of
 // accessor class instead of calling method pointers, then then maybe this could
