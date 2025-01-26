@@ -50,6 +50,7 @@ set(MP_PUBLIC_HEADERS
   include/mp/type-function.h
   include/mp/type-interface.h
   include/mp/type-map.h
+  include/mp/type-message.h
   include/mp/type-number.h
   include/mp/type-optional.h
   include/mp/type-pair.h
