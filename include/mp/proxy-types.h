@@ -206,32 +206,6 @@ struct ListOutput<::capnp::List<T, kind>>
 };
 
 template <typename LocalType, typename Value, typename Output>
-void CustomBuildField(TypeList<const LocalType>,
-    Priority<0>,
-    InvokeContext& invoke_context,
-    Value&& value,
-    Output&& output)
-{
-    BuildField(TypeList<LocalType>(), invoke_context, output, std::forward<Value>(value));
-}
-
-template <typename LocalType, typename Value, typename Output>
-void CustomBuildField(TypeList<LocalType&>, Priority<0>, InvokeContext& invoke_context, Value&& value, Output&& output)
-{
-    BuildField(TypeList<LocalType>(), invoke_context, output, std::forward<Value>(value));
-}
-
-template <typename LocalType, typename Value, typename Output>
-void CustomBuildField(TypeList<LocalType&&>,
-    Priority<0>,
-    InvokeContext& invoke_context,
-    Value&& value,
-    Output&& output)
-{
-    BuildField(TypeList<LocalType>(), invoke_context, output, std::forward<Value>(value));
-}
-
-template <typename LocalType, typename Value, typename Output>
 void CustomBuildField(TypeList<LocalType>, Priority<0>, InvokeContext& invoke_context, Value&& value, Output&& output)
 {
     output.set(BuildPrimitive(invoke_context, std::forward<Value>(value), TypeList<decltype(output.get())>()));
