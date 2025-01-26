@@ -7,6 +7,7 @@
 
 #include <mp/proxy-types.h>
 #include <mp/type-context.h>
+#include <mp/type-map.h>
 #include <mp/type-set.h>
 #include <mp/type-vector.h>
 
