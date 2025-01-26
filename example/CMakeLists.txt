@@ -26,4 +26,4 @@ target_include_directories(mpexample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(mpexample PRIVATE Threads::Threads)
 target_link_libraries(mpexample PRIVATE stdc++fs)
 
-add_custom_target(example DEPENDS mpexample mpcalculator mpprinter)
+add_custom_target(mpexamples DEPENDS mpexample mpcalculator mpprinter)
