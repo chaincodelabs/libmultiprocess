@@ -165,11 +165,6 @@ void ThrowField(TypeList<std::exception>, InvokeContext& invoke_context, Input&&
     throw std::runtime_error(std::string(CharCast(data.begin()), data.size()));
 }
 
-template <typename LocalType, typename Output>
-void CustomBuildField(TypeList<LocalType>, Priority<1>, InvokeContext& invoke_context, ::capnp::Void, Output&& output)
-{
-}
-
 template <typename... Values>
 bool CustomHasValue(InvokeContext& invoke_context, Values&&... value)
 {
@@ -210,11 +205,6 @@ struct ListOutput<::capnp::List<T, kind>>
     // clang-format on
 };
 
-template <typename Value>
-::capnp::Void BuildPrimitive(InvokeContext& invoke_context, Value&&, TypeList<::capnp::Void>)
-{
-    return {};
-}
 template <typename Output>
 void CustomBuildField(TypeList<std::exception>,
     Priority<1>,
