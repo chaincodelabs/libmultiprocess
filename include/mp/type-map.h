@@ -6,6 +6,7 @@
 #define MP_PROXY_TYPE_MAP_H
 
 #include <mp/proxy-types.h>
+#include <mp/type-pair.h>
 #include <mp/util.h>
 
 namespace mp {
