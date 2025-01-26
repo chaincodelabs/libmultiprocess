@@ -141,27 +141,6 @@ struct ReadDestUpdate
     Value& m_value;
 };
 
-template <typename LocalType, typename Input, typename ReadDest>
-decltype(auto) CustomReadField(TypeList<std::optional<LocalType>>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    ReadDest&& read_dest)
-{
-    return read_dest.update([&](auto& value) {
-        if (!input.has()) {
-            value.reset();
-        } else if (value) {
-            ReadField(TypeList<LocalType>(), invoke_context, input, ReadDestUpdate(*value));
-        } else {
-            ReadField(TypeList<LocalType>(), invoke_context, input,
-                ReadDestEmplace(TypeList<LocalType>(), [&](auto&&... args) -> auto& {
-                    value.emplace(std::forward<decltype(args)>(args)...);
-                    return *value;
-                }));
-        }
-    });
-}
 
 template <typename LocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::shared_ptr<LocalType>>,
@@ -822,20 +801,6 @@ LocalType BuildPrimitive(InvokeContext& invoke_context,
     static_assert(std::is_same<Value, LocalType>::value,
         "mismatched floating point types. please fix message.capnp type declaration to match wrapped interface");
     return value;
-}
-
-template <typename LocalType, typename Value, typename Output>
-void CustomBuildField(TypeList<std::optional<LocalType>>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Value&& value,
-    Output&& output)
-{
-    if (value) {
-        output.setHas();
-        // FIXME: should std::move value if destvalue is rref?
-        BuildField(TypeList<LocalType>(), invoke_context, output, *value);
-    }
 }
 
 template <typename Output>
