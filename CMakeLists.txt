@@ -26,6 +26,8 @@ include("cmake/compat_config.cmake")
 include("cmake/pthread_checks.cmake")
 include(GNUInstallDirs)
 
+set(MP_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
 # Generated C++ preprocessor defines
 configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/config.h")
 

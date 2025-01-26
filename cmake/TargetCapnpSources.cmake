@@ -68,7 +68,7 @@ function(target_capnp_sources target include_prefix)
   foreach(capnp_file IN LISTS TCS_UNPARSED_ARGUMENTS)
     add_custom_command(
       OUTPUT ${capnp_file}.c++ ${capnp_file}.h ${capnp_file}.proxy-client.c++ ${capnp_file}.proxy-types.h ${capnp_file}.proxy-server.c++ ${capnp_file}.proxy-types.c++ ${capnp_file}.proxy.h
-      COMMAND Libmultiprocess::mpgen ${CMAKE_CURRENT_SOURCE_DIR} ${include_prefix} ${CMAKE_CURRENT_SOURCE_DIR}/${capnp_file} ${TCS_IMPORT_PATHS}
+      COMMAND Libmultiprocess::mpgen ${CMAKE_CURRENT_SOURCE_DIR} ${include_prefix} ${CMAKE_CURRENT_SOURCE_DIR}/${capnp_file} ${TCS_IMPORT_PATHS} ${MP_INCLUDE_DIR}
       DEPENDS ${capnp_file}
       VERBATIM
     )
@@ -89,7 +89,7 @@ function(target_capnp_sources target include_prefix)
   if(relative_path)
     string(APPEND build_include_prefix "/" "${relative_path}")
   endif()
-  target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${build_include_prefix}>)
+  target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${build_include_prefix}> ${MP_INCLUDE_DIR})
 
   if(TARGET Libmultiprocess::multiprocess)
     target_link_libraries(${target} PRIVATE Libmultiprocess::multiprocess)
