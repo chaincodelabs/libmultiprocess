@@ -141,19 +141,6 @@ struct ReadDestUpdate
     Value& m_value;
 };
 
-template <size_t size, typename Input, typename ReadDest>
-decltype(auto) CustomReadField(TypeList<unsigned char[size]>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    ReadDest&& read_dest)
-{
-    return read_dest.update([&](auto& value) {
-        auto data = input.get();
-        memcpy(value, data.begin(), size);
-    });
-}
-
 template <typename Interface, typename Impl>
 std::unique_ptr<Impl> MakeProxyClient(InvokeContext& context, typename Interface::Client&& client)
 {
@@ -304,17 +291,6 @@ void ThrowField(TypeList<std::exception>, InvokeContext& invoke_context, Input&&
 template <typename LocalType, typename Output>
 void CustomBuildField(TypeList<LocalType>, Priority<1>, InvokeContext& invoke_context, ::capnp::Void, Output&& output)
 {
-}
-
-template <typename Output, size_t size>
-void CustomBuildField(TypeList<const unsigned char*>,
-    Priority<3>,
-    InvokeContext& invoke_context,
-    const unsigned char (&value)[size],
-    Output&& output)
-{
-    auto result = output.init(size);
-    memcpy(result.begin(), value, size);
 }
 
 template <typename... Values>
