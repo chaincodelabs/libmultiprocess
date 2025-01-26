@@ -6,5 +6,6 @@
 #define EXAMPLE_TYPES_H
 
 #include <mp/type-context.h>
+#include <mp/type-string.h>
 
 #endif // EXAMPLE_TYPES_H

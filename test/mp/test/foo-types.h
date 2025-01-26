@@ -10,6 +10,7 @@
 #include <mp/type-map.h>
 #include <mp/type-number.h>
 #include <mp/type-set.h>
+#include <mp/type-string.h>
 #include <mp/type-vector.h>
 
 namespace mp {

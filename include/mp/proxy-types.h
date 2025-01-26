@@ -141,17 +141,6 @@ struct ReadDestUpdate
     Value& m_value;
 };
 
-template <typename Input, typename ReadDest>
-decltype(auto) CustomReadField(TypeList<std::string>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    ReadDest&& read_dest)
-{
-    auto data = input.get();
-    return read_dest.construct(CharCast(data.begin()), data.size());
-}
-
 template <size_t size, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<unsigned char[size]>,
     Priority<1>,
@@ -315,17 +304,6 @@ void ThrowField(TypeList<std::exception>, InvokeContext& invoke_context, Input&&
 template <typename LocalType, typename Output>
 void CustomBuildField(TypeList<LocalType>, Priority<1>, InvokeContext& invoke_context, ::capnp::Void, Output&& output)
 {
-}
-
-template <typename Value, typename Output>
-void CustomBuildField(TypeList<std::string>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Value&& value,
-    Output&& output)
-{
-    auto result = output.init(value.size());
-    memcpy(result.begin(), value.data(), value.size());
 }
 
 template <typename Output, size_t size>
