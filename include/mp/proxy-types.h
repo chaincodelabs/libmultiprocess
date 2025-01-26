@@ -214,7 +214,7 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
 }
 
 // Destination parameter type that can be passed to ReadField function as an
-// alternative to ReadDestValue. It allows the ReadField implementation to call
+// alternative to ReadDestUpdate. It allows the ReadField implementation to call
 // the provided emplace_fn function with constructor arguments, so it only needs
 // to determine the arguments, and can let the emplace function decide how to
 // actually construct the read destination object. For example, if a std::string
@@ -274,9 +274,9 @@ auto ReadDestTemp()
 //! construct a new value, it just takes a reference to an existing value and
 //! assigns a new value to it.
 template <typename Value>
-struct ReadDestValue
+struct ReadDestUpdate
 {
-    ReadDestValue(Value& value) : m_value(value) {}
+    ReadDestUpdate(Value& value) : m_value(value) {}
 
     //! Simple case. If ReadField works by calling update() just forward arguments to update_fn.
     template <typename UpdateFn>
@@ -310,7 +310,7 @@ decltype(auto) CustomReadField(TypeList<std::optional<LocalType>>,
         if (!input.has()) {
             value.reset();
         } else if (value) {
-            ReadField(TypeList<LocalType>(), invoke_context, input, ReadDestValue(*value));
+            ReadField(TypeList<LocalType>(), invoke_context, input, ReadDestUpdate(*value));
         } else {
             ReadField(TypeList<LocalType>(), invoke_context, input,
                 ReadDestEmplace(TypeList<LocalType>(), [&](auto&&... args) -> auto& {
@@ -332,7 +332,7 @@ decltype(auto) CustomReadField(TypeList<std::shared_ptr<LocalType>>,
         if (!input.has()) {
             value.reset();
         } else if (value) {
-            ReadField(TypeList<LocalType>(), invoke_context, input, ReadDestValue(*value));
+            ReadField(TypeList<LocalType>(), invoke_context, input, ReadDestUpdate(*value));
         } else {
             ReadField(TypeList<LocalType>(), invoke_context, input,
                 ReadDestEmplace(TypeList<LocalType>(), [&](auto&&... args) -> auto& {
@@ -352,7 +352,7 @@ decltype(auto) CustomReadField(TypeList<LocalType*>,
 {
     return read_dest.update([&](auto& value) {
         if (value) {
-            ReadField(TypeList<LocalType>(), invoke_context, std::forward<Input>(input), ReadDestValue(*value));
+            ReadField(TypeList<LocalType>(), invoke_context, std::forward<Input>(input), ReadDestUpdate(*value));
         }
     });
 }
@@ -492,9 +492,9 @@ decltype(auto) CustomReadField(TypeList<std::tuple<KeyLocalType, ValueLocalType>
         using Struct = ProxyStruct<typename Decay<decltype(pair)>::Reads>;
         using Accessors = typename Struct::Accessors;
         ReadField(TypeList<KeyLocalType>(), invoke_context, Make<StructField, std::tuple_element_t<0, Accessors>>(pair),
-            ReadDestValue(std::get<0>(value)));
+            ReadDestUpdate(std::get<0>(value)));
         ReadField(TypeList<ValueLocalType>(), invoke_context, Make<StructField, std::tuple_element_t<1, Accessors>>(pair),
-            ReadDestValue(std::get<1>(value)));
+            ReadDestUpdate(std::get<1>(value)));
     });
 }
 
@@ -647,7 +647,7 @@ void ReadOne(TypeList<LocalType> param,
     const auto& struc = input.get();
     auto&& field_value = value.*ProxyType<LocalType>::get(Index());
     ReadField(TypeList<RemoveCvRef<decltype(field_value)>>(), invoke_context, Make<StructField, Accessor>(struc),
-        ReadDestValue(field_value));
+        ReadDestUpdate(field_value));
     ReadOne<index + 1>(param, invoke_context, input, value);
 }
 
@@ -1118,7 +1118,7 @@ void PassField(Priority<1>, TypeList<LocalType*>, ServerContext& server_context,
     Decay<LocalType> param;
 
     MaybeReadField(std::integral_constant<bool, Accessor::in>(), TypeList<LocalType>(), invoke_context, input,
-        ReadDestValue(param));
+        ReadDestUpdate(param));
 
     fn.invoke(server_context, std::forward<Args>(args)..., &param);
 
@@ -1355,7 +1355,7 @@ struct ClientParam
             -> typename std::enable_if<I == sizeof...(Types)>::type
         {
             MaybeReadField(std::integral_constant<bool, Accessor::out>(), TypeList<Decay<Params>...>(), invoke_context,
-                Make<StructField, Accessor>(results), ReadDestValue(values)...);
+                Make<StructField, Accessor>(results), ReadDestUpdate(values)...);
         }
 
         ReadResults(ClientParam* client_param) : m_client_param(client_param) {}
