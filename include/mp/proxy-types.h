@@ -145,25 +145,6 @@ struct ReadDestUpdate
 
 
 
-template <typename LocalType, typename Input, typename ReadDest>
-decltype(auto) CustomReadField(TypeList<std::set<LocalType>>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Input&& input,
-    ReadDest&& read_dest)
-{
-    return read_dest.update([&](auto& value) {
-        auto data = input.get();
-        value.clear();
-        for (auto item : data) {
-            ReadField(TypeList<LocalType>(), invoke_context, Make<ValueField>(item),
-                ReadDestEmplace(TypeList<const LocalType>(), [&](auto&&... args) -> auto& {
-                    return *value.emplace(std::forward<decltype(args)>(args)...).first;
-                }));
-        }
-    });
-}
-
 template <typename KeyLocalType, typename ValueLocalType, typename Input, typename ReadDest>
 decltype(auto) CustomReadField(TypeList<std::map<KeyLocalType, ValueLocalType>>,
     Priority<1>,
@@ -597,22 +578,6 @@ struct ListOutput<::capnp::List<T, kind>>
     template<typename B = Builder, typename Arg> decltype(auto) init(Arg&& arg) const { return static_cast<B&>(this->m_builder).init(m_index, std::forward<Arg>(arg)); }
     // clang-format on
 };
-
-template <typename LocalType, typename Value, typename Output>
-void CustomBuildField(TypeList<std::set<LocalType>>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    Value&& value,
-    Output&& output)
-{
-    // FIXME dededup with vector handler above
-    auto list = output.init(value.size());
-    size_t i = 0;
-    for (const auto& elem : value) {
-        BuildField(TypeList<LocalType>(), invoke_context, ListOutput<typename decltype(list)::Builds>(list, i), elem);
-        ++i;
-    }
-}
 
 template <typename KeyLocalType, typename ValueLocalType, typename Value, typename Output>
 void CustomBuildField(TypeList<std::map<KeyLocalType, ValueLocalType>>,

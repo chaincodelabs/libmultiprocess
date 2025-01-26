@@ -48,6 +48,7 @@ set(MP_PUBLIC_HEADERS
   include/mp/type-context.h
   include/mp/type-optional.h
   include/mp/type-pointer.h
+  include/mp/type-set.h
   include/mp/type-vector.h
   include/mp/util.h)
 add_library(multiprocess STATIC
