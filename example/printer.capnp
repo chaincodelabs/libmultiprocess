@@ -8,6 +8,7 @@ using Cxx = import "/capnp/c++.capnp";
 using Proxy = import "/mp/proxy.capnp";
 
 $Proxy.include("printer.h");
+$Proxy.includeTypes("types.h");
 
 interface PrinterInterface $Proxy.wrap("Printer") {
     destroy @0 (context :Proxy.Context) -> ();

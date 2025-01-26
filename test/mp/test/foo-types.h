@@ -6,6 +6,7 @@
 #define MP_TEST_FOO_TYPES_H
 
 #include <mp/proxy-types.h>
+#include <mp/type-context.h>
 
 namespace mp {
 namespace test {
