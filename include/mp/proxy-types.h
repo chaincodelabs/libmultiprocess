@@ -205,15 +205,6 @@ struct ListOutput<::capnp::List<T, kind>>
     // clang-format on
 };
 
-template <typename Output>
-void CustomBuildField(TypeList<std::exception>,
-    Priority<1>,
-    InvokeContext& invoke_context,
-    const std::exception& value,
-    Output&& output)
-{
-    BuildField(TypeList<std::string>(), invoke_context, output, std::string(value.what()));
-}
 template <typename LocalType, typename Value, typename Output>
 void CustomBuildField(TypeList<const LocalType>,
     Priority<0>,

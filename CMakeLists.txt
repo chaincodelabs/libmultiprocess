@@ -47,6 +47,7 @@ set(MP_PUBLIC_HEADERS
   include/mp/proxy.h
   include/mp/type-char.h
   include/mp/type-context.h
+  include/mp/type-exception.h
   include/mp/type-function.h
   include/mp/type-interface.h
   include/mp/type-map.h
