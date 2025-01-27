@@ -333,7 +333,7 @@ public:
         // to the EventLoop TaskSet to avoid "Promise callback destroyed itself"
         // error in cases where f deletes this Connection object.
         m_on_disconnect.add(m_network.onDisconnect().then(
-            [this, f = std::move(f)]() mutable { m_loop.m_task_set->add(kj::evalLater(kj::mv(f))); }));
+            [f = std::move(f), this]() mutable { m_loop.m_task_set->add(kj::evalLater(kj::mv(f))); }));
     }
 
     EventLoop& m_loop;

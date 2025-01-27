@@ -95,13 +95,6 @@ void CustomBuildField(TypeList<>,
     context.setCallbackThread(callback_thread->second.m_client);
 }
 
-// Invoke promise1, then promise2, and return result of promise2.
-template <typename T, typename U>
-kj::Promise<U> JoinPromises(kj::Promise<T>&& prom1, kj::Promise<U>&& prom2)
-{
-    return prom1.then([prom2 = kj::mv(prom2)]() mutable { return kj::mv(prom2); });
-}
-
 //! PassField override for mp.Context arguments. Return asynchronously and call
 //! function on other thread found in context.
 template <typename Accessor, typename ServerContext, typename Fn, typename... Args>
@@ -116,9 +109,8 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
     auto& server = server_context.proxy_server;
     int req = server_context.req;
     auto invoke = MakeAsyncCallable(
-        [&server, req, fn, args...,
-         fulfiller = kj::mv(future.fulfiller),
-         call_context = kj::mv(server_context.call_context)]() mutable {
+        [fulfiller = kj::mv(future.fulfiller),
+         call_context = kj::mv(server_context.call_context), &server, req, fn, args...]() mutable {
                 const auto& params = call_context.getParams();
                 Context::Reader context_arg = Accessor::get(params);
                 ServerContext server_context{server, call_context, req};
@@ -201,27 +193,24 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
     // be a local Thread::Server object, but it needs to be looked up
     // asynchronously with getLocalServer().
     auto thread_client = context_arg.getThread();
-    return JoinPromises(server.m_context.connection->m_threads.getLocalServer(thread_client)
-                            .then([&server, invoke, req](const kj::Maybe<Thread::Server&>& perhaps) {
-                                // Assuming the thread object is found, pass it a pointer to the
-                                // `invoke` lambda above which will invoke the function on that
-                                // thread.
-                                KJ_IF_MAYBE(thread_server, perhaps)
-                                {
-                                    const auto& thread = static_cast<ProxyServer<Thread>&>(*thread_server);
-                                    server.m_context.connection->m_loop.log() << "IPC server post request  #" << req << " {"
-                                                                     << thread.m_thread_context.thread_name << "}";
-                                    thread.m_thread_context.waiter->post(std::move(invoke));
-                                }
-                                else
-                                {
-                                    server.m_context.connection->m_loop.log() << "IPC server error request #" << req
-                                                                     << ", missing thread to execute request";
-                                    throw std::runtime_error("invalid thread handle");
-                                }
-                            }),
+    return server.m_context.connection->m_threads.getLocalServer(thread_client)
+        .then([&server, invoke, req](const kj::Maybe<Thread::Server&>& perhaps) {
+            // Assuming the thread object is found, pass it a pointer to the
+            // `invoke` lambda above which will invoke the function on that
+            // thread.
+            KJ_IF_MAYBE (thread_server, perhaps) {
+                const auto& thread = static_cast<ProxyServer<Thread>&>(*thread_server);
+                server.m_context.connection->m_loop.log()
+                    << "IPC server post request  #" << req << " {" << thread.m_thread_context.thread_name << "}";
+                thread.m_thread_context.waiter->post(std::move(invoke));
+            } else {
+                server.m_context.connection->m_loop.log()
+                    << "IPC server error request #" << req << ", missing thread to execute request";
+                throw std::runtime_error("invalid thread handle");
+            }
+        })
         // Wait for the invocation to finish before returning to the caller.
-        kj::mv(future.promise));
+        .then([invoke_wait = kj::mv(future.promise)]() mutable { return kj::mv(invoke_wait); });
 }
 
 // Destination parameter type that can be passed to ReadField function as an
