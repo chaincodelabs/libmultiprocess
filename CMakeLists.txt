@@ -26,6 +26,21 @@ include("cmake/compat_config.cmake")
 include("cmake/pthread_checks.cmake")
 include(GNUInstallDirs)
 
+# Set convenience variables for subdirectories.
+set(MP_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(MP_STANDALONE TRUE)
+else()
+  # Set MP_INCLUDE_DIR for parent directories too, so target_capnp_sources calls
+  # in parent directories can use it and not need to specify include directories
+  # manually or see capnproto error "error: Import failed: /mp/proxy.capnp"
+  set(MP_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include" PARENT_SCOPE)
+  set(MP_STANDALONE FALSE)
+endif()
+
+# Prevent include directories from parent project from leaking into this one.
+set_property(DIRECTORY PROPERTY INCLUDE_DIRECTORIES "")
+
 # Generated C++ preprocessor defines
 configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/config.h")
 
@@ -33,10 +48,10 @@ configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/co
 capnp_generate_cpp(MP_PROXY_SRCS MP_PROXY_HDRS include/mp/proxy.capnp)
 
 # util library
-add_library(util OBJECT src/mp/util.cpp)
-target_include_directories(util PRIVATE
-  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
+add_library(mputil OBJECT src/mp/util.cpp)
+target_include_directories(mputil PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   ${CAPNP_INCLUDE_DIRECTORY})
 
 # libmultiprocess.a runtime library
@@ -71,7 +86,7 @@ add_library(multiprocess STATIC
   ${MP_PROXY_SRCS}
   ${MP_PUBLIC_HEADERS}
   src/mp/proxy.cpp
-  $<TARGET_OBJECTS:util>)
+  $<TARGET_OBJECTS:mputil>)
 add_library(Libmultiprocess::multiprocess ALIAS multiprocess)
 target_include_directories(multiprocess PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
@@ -89,7 +104,7 @@ install(TARGETS multiprocess EXPORT LibTargets
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mp COMPONENT lib)
 
 # mpgen code generator
-add_executable(mpgen src/mp/gen.cpp $<TARGET_OBJECTS:util>)
+add_executable(mpgen src/mp/gen.cpp $<TARGET_OBJECTS:mputil>)
 add_executable(Libmultiprocess::mpgen ALIAS mpgen)
 target_include_directories(mpgen PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
 target_include_directories(mpgen PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
