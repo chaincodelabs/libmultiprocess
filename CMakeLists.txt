@@ -45,6 +45,27 @@ set(MP_PUBLIC_HEADERS
   include/mp/proxy-io.h
   include/mp/proxy-types.h
   include/mp/proxy.h
+  include/mp/type-char.h
+  include/mp/type-chrono.h
+  include/mp/type-context.h
+  include/mp/type-data.h
+  include/mp/type-decay.h
+  include/mp/type-exception.h
+  include/mp/type-function.h
+  include/mp/type-interface.h
+  include/mp/type-map.h
+  include/mp/type-message.h
+  include/mp/type-number.h
+  include/mp/type-optional.h
+  include/mp/type-pair.h
+  include/mp/type-pointer.h
+  include/mp/type-set.h
+  include/mp/type-string.h
+  include/mp/type-struct.h
+  include/mp/type-threadmap.h
+  include/mp/type-tuple.h
+  include/mp/type-vector.h
+  include/mp/type-void.h
   include/mp/util.h)
 add_library(multiprocess STATIC
   ${MP_PROXY_SRCS}

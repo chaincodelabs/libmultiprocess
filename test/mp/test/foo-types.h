@@ -6,6 +6,17 @@
 #define MP_TEST_FOO_TYPES_H
 
 #include <mp/proxy-types.h>
+#include <mp/type-context.h>
+#include <mp/type-decay.h>
+#include <mp/type-interface.h>
+#include <mp/type-map.h>
+#include <mp/type-message.h>
+#include <mp/type-number.h>
+#include <mp/type-set.h>
+#include <mp/type-string.h>
+#include <mp/type-struct.h>
+#include <mp/type-threadmap.h>
+#include <mp/type-vector.h>
 
 namespace mp {
 namespace test {

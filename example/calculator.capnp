@@ -8,6 +8,7 @@ using Cxx = import "/capnp/c++.capnp";
 using Proxy = import "/mp/proxy.capnp";
 
 $Proxy.include("calculator.h");
+$Proxy.includeTypes("types.h");
 
 interface CalculatorInterface $Proxy.wrap("Calculator") {
     destroy @0 (context :Proxy.Context) -> ();
