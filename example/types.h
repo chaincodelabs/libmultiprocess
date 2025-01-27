@@ -9,5 +9,6 @@
 #include <mp/type-decay.h>
 #include <mp/type-interface.h>
 #include <mp/type-string.h>
+#include <mp/type-threadmap.h>
 
 #endif // EXAMPLE_TYPES_H

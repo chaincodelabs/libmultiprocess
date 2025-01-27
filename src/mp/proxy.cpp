@@ -7,6 +7,7 @@
 #include <mp/proxy-io.h>
 #include <mp/proxy-types.h>
 #include <mp/proxy.capnp.h>
+#include <mp/type-threadmap.h>
 #include <mp/util.h>
 
 #include <assert.h>

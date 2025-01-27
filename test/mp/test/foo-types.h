@@ -15,6 +15,7 @@
 #include <mp/type-set.h>
 #include <mp/type-string.h>
 #include <mp/type-struct.h>
+#include <mp/type-threadmap.h>
 #include <mp/type-vector.h>
 
 namespace mp {
