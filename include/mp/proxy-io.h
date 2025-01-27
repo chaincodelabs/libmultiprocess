@@ -155,11 +155,17 @@ public:
         return post(std::ref(callable));
     }
 
-    //! Start asynchronous worker thread. This is only used when
-    //! there is a broken connection, leaving behind ProxyServerBase objects
-    //! that need to be destroyed, in which case server ProxyServer::m_impl
-    //! destructors don't have a dedicated thread to work and on shouldn't tie
-    //! up the eventloop thread because it may need to do I/O on their behalf.
+    //! Start asynchronous worker thread if necessary. This is only done if
+    //! there are ProxyServerBase::m_impl objects that need to be destroyed
+    //! asynchronously, without tying up the event loop thread. This can happen
+    //! when an interface does not declare a destroy() method that would allow
+    //! the client to wait for the destructor to finish and run it on a
+    //! dedicated thread. It can also happen whenever this is a broken
+    //! connection and the client is no longer around to call the destructors
+    //! and the server objects need to be garbage collected. In both cases, it
+    //! is important that ProxyServer::m_impl destructors do not run on the
+    //! eventloop thread because they may need it to do I/O if they perform
+    //! other IPC calls.
     void startAsyncThread(std::unique_lock<std::mutex>& lock);
 
     //! Add/remove remote client reference counts.
