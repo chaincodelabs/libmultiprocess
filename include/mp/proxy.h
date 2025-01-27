@@ -39,11 +39,19 @@ struct ProxyType;
 using CleanupList = std::list<std::function<void()>>;
 using CleanupIt = typename CleanupList::iterator;
 
+inline void CleanupRun(CleanupList& fns) {
+    while (!fns.empty()) {
+        auto fn = std::move(fns.front());
+        fns.pop_front();
+        fn();
+    }
+}
+
 //! Context data associated with proxy client and server classes.
 struct ProxyContext
 {
     Connection* connection;
-    std::list<std::function<void()>> cleanup;
+    CleanupList cleanup_fns;
 
     ProxyContext(Connection* connection) : connection(connection) {}
 };
@@ -147,7 +155,7 @@ public:
 //! state can be destroyed without blocking, because ProxyServer destructors are
 //! called from the EventLoop thread, and if they block, it could deadlock the
 //! program. One way to do avoid blocking is to clean up the state by pushing
-//! cleanup callbacks to the m_context.cleanup list, which run after the server
+//! cleanup callbacks to the m_context.cleanup_fns list, which run after the server
 //! m_impl object is destroyed on the same thread destroying it (which will
 //! either be an IPC worker thread if the ProxyServer is being explicitly
 //! destroyed by a client calling a destroy() method with a Context argument and
