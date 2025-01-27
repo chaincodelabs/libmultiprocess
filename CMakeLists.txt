@@ -48,6 +48,7 @@ set(MP_PUBLIC_HEADERS
   include/mp/type-char.h
   include/mp/type-chrono.h
   include/mp/type-context.h
+  include/mp/type-data.h
   include/mp/type-decay.h
   include/mp/type-exception.h
   include/mp/type-function.h
