@@ -95,10 +95,10 @@ target_include_directories(multiprocess PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   ${CAPNP_INCLUDE_DIRECTORY})
-target_link_libraries(multiprocess PRIVATE CapnProto::capnp)
-target_link_libraries(multiprocess PRIVATE CapnProto::capnp-rpc)
-target_link_libraries(multiprocess PRIVATE CapnProto::kj)
-target_link_libraries(multiprocess PRIVATE CapnProto::kj-async)
+target_link_libraries(multiprocess PUBLIC CapnProto::capnp)
+target_link_libraries(multiprocess PUBLIC CapnProto::capnp-rpc)
+target_link_libraries(multiprocess PUBLIC CapnProto::kj)
+target_link_libraries(multiprocess PUBLIC CapnProto::kj-async)
 set_target_properties(multiprocess PROPERTIES
     PUBLIC_HEADER "${MP_PUBLIC_HEADERS}")
 install(TARGETS multiprocess EXPORT LibTargets
