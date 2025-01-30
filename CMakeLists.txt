@@ -97,9 +97,18 @@ target_include_directories(multiprocess PUBLIC
 target_include_directories(multiprocess SYSTEM PUBLIC
   $<BUILD_INTERFACE:${CAPNP_INCLUDE_DIRECTORY}>
 )
-target_include_directories(multiprocess SYSTEM PUBLIC
-  $<INSTALL_INTERFACE:${CAPNP_INCLUDE_DIRECTORY}>
-)
+
+# Hack to avoid exporting a path "which is prefixed in the source directory".
+# If we're in another project's subdir and capnp is installed somewhere inside
+# that project (as it is with depends in Bicoin Core) CMake refuses to allow it
+# in the install interface. Use the "EXCLUDE_FROM_ALL" property as a proxy for
+# detecting this condition, as in that case install won't happen anyway.
+get_directory_property(mp_skip_install EXCLUDE_FROM_ALL)
+if(NOT "${mp_skip_install}")
+  target_include_directories(multiprocess SYSTEM PUBLIC
+    $<INSTALL_INTERFACE:${CAPNP_INCLUDE_DIRECTORY}>
+  )
+endif()
 
 target_link_libraries(multiprocess PRIVATE CapnProto::capnp)
 target_link_libraries(multiprocess PRIVATE CapnProto::capnp-rpc)
