@@ -92,7 +92,15 @@ target_include_directories(multiprocess PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-  ${CAPNP_INCLUDE_DIRECTORY})
+)
+
+target_include_directories(multiprocess SYSTEM PUBLIC
+  $<BUILD_INTERFACE:${CAPNP_INCLUDE_DIRECTORY}>
+)
+target_include_directories(multiprocess SYSTEM PUBLIC
+  $<INSTALL_INTERFACE:${CAPNP_INCLUDE_DIRECTORY}>
+)
+
 target_link_libraries(multiprocess PRIVATE CapnProto::capnp)
 target_link_libraries(multiprocess PRIVATE CapnProto::capnp-rpc)
 target_link_libraries(multiprocess PRIVATE CapnProto::kj)
