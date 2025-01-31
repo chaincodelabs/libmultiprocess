@@ -314,6 +314,9 @@ struct IterateFieldsHelper
     {
         static_cast<Derived*>(this)->handleField(std::forward<Arg1>(arg1), std::forward<Arg2>(arg2), ParamList());
     }
+private:
+    IterateFieldsHelper() = default;
+    friend Derived;
 };
 
 struct IterateFields : IterateFieldsHelper<IterateFields, 0>
