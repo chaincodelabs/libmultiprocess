@@ -63,7 +63,7 @@ struct ProxyClient<Thread> : public ProxyClientBase<Thread, ::capnp::Void>
     ProxyClient(const ProxyClient&) = delete;
     ~ProxyClient();
 
-    void setCleanup(std::function<void()> fn);
+    void setCleanup(const std::function<void()>& fn);
 
     //! Cleanup function to run when the connection is closed. If the Connection
     //! gets destroyed before this ProxyClient<Thread> object, this cleanup
@@ -247,7 +247,7 @@ struct Waiter
     template <typename Fn>
     void post(Fn&& fn)
     {
-        std::unique_lock<std::mutex> lock(m_mutex);
+        std::unique_lock<std::mutex> lock(m_mutex); // NOLINT(misc-const-correctness)
         assert(!m_fn);
         m_fn = std::move(fn);
         m_cv.notify_all();
@@ -269,7 +269,7 @@ struct Waiter
                 fn();
                 lock.lock();
             }
-            bool done = pred();
+            const bool done = pred();
             return done;
         });
     }
@@ -488,7 +488,7 @@ ProxyServerBase<Interface, Impl>::~ProxyServerBase()
             CleanupRun(fns);
         });
     }
-    assert(m_context.cleanup_fns.size() == 0);
+    assert(m_context.cleanup_fns.empty());
     std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
     m_context.connection->m_loop.removeClient(lock);
 }
@@ -523,7 +523,7 @@ using ConnThread = ConnThreads::iterator;
 // Retrieve ProxyClient<Thread> object associated with this connection from a
 // map, or create a new one and insert it into the map. Return map iterator and
 // inserted bool.
-std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, Connection* connection, std::function<Thread::Client()> make_thread);
+std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, Connection* connection, const std::function<Thread::Client()>& make_thread);
 
 struct ThreadContext
 {

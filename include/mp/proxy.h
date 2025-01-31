@@ -198,7 +198,7 @@ struct FunctionTraits<_Result (_Class::*const)(_Params...)>
     template <size_t N>
     using Param = typename std::tuple_element<N, std::tuple<_Params...>>::type;
     using Fields =
-        typename std::conditional<std::is_same<void, Result>::value, Params, TypeList<_Params..., _Result>>::type;
+        std::conditional_t<std::is_same_v<void, Result>, Params, TypeList<_Params..., _Result>>;
 };
 
 //! Traits class for a proxy method, providing the same

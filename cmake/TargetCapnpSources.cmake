@@ -66,18 +66,20 @@ function(target_capnp_sources target include_prefix)
 
   set(generated_headers "")
   foreach(capnp_file IN LISTS TCS_UNPARSED_ARGUMENTS)
-    add_custom_command(
-      OUTPUT ${capnp_file}.c++ ${capnp_file}.h ${capnp_file}.proxy-client.c++ ${capnp_file}.proxy-types.h ${capnp_file}.proxy-server.c++ ${capnp_file}.proxy-types.c++ ${capnp_file}.proxy.h
-      COMMAND Libmultiprocess::mpgen ${CMAKE_CURRENT_SOURCE_DIR} ${include_prefix} ${CMAKE_CURRENT_SOURCE_DIR}/${capnp_file} ${TCS_IMPORT_PATHS} ${MP_INCLUDE_DIR}
-      DEPENDS ${capnp_file}
-      VERBATIM
-    )
-    target_sources(${target} PRIVATE
+    set(generated_sources
       ${CMAKE_CURRENT_BINARY_DIR}/${capnp_file}.c++
       ${CMAKE_CURRENT_BINARY_DIR}/${capnp_file}.proxy-client.c++
       ${CMAKE_CURRENT_BINARY_DIR}/${capnp_file}.proxy-server.c++
       ${CMAKE_CURRENT_BINARY_DIR}/${capnp_file}.proxy-types.c++
     )
+    add_custom_command(
+      OUTPUT ${generated_sources} ${capnp_file}.h ${capnp_file}.proxy-types.h ${capnp_file}.proxy.h
+      COMMAND Libmultiprocess::mpgen ${CMAKE_CURRENT_SOURCE_DIR} ${include_prefix} ${CMAKE_CURRENT_SOURCE_DIR}/${capnp_file} ${TCS_IMPORT_PATHS} ${MP_INCLUDE_DIR}
+      DEPENDS ${capnp_file}
+      VERBATIM
+    )
+    target_sources(${target} PRIVATE ${generated_sources})
+    set_source_files_properties(${generated_sources} PROPERTIES SKIP_LINTING ON)
 
     list(APPEND generated_headers ${capnp_file}.h)
   endforeach()

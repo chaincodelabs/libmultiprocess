@@ -5,13 +5,15 @@
 #include <calculator.h>
 #include <fstream>
 #include <init.capnp.h>
-#include <init.capnp.proxy-types.h>
+#include <init.capnp.proxy.h> // NOLINT(misc-include-cleaner)
 #include <init.h>
 #include <iostream>
 #include <memory>
 #include <mp/proxy-io.h>
 #include <printer.h>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 class CalculatorImpl : public Calculator
 {
@@ -30,7 +32,7 @@ public:
     }
 };
 
-void LogPrint(bool raise, const std::string& message)
+static void LogPrint(bool raise, const std::string& message)
 {
     if (raise) throw std::runtime_error(message);
     std::ofstream("debug.log", std::ios_base::app) << message << std::endl;
@@ -43,7 +45,7 @@ int main(int argc, char** argv)
         return 1;
     }
     mp::EventLoop loop("mpcalculator", LogPrint);
-    int fd = std::stoi(argv[1]);
+    const int fd = std::stoi(argv[1]);
     std::unique_ptr<Init> init = std::make_unique<InitImpl>();
     mp::ServeStream<InitInterface>(loop, fd, *init);
     loop.loop();

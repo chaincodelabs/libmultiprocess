@@ -4,17 +4,24 @@
 
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <init.capnp.h>
-#include <init.capnp.proxy-types.h>
+#include <init.capnp.proxy.h>
 #include <iostream>
 #include <mp/proxy-io.h>
+#include <mp/util.h>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <tuple>
+#include <vector>
 
 namespace fs = std::filesystem;
 
-auto Spawn(mp::EventLoop& loop, const std::string& process_argv0, const std::string& new_exe_name)
+static auto Spawn(mp::EventLoop& loop, const std::string& process_argv0, const std::string& new_exe_name)
 {
     int pid;
-    int fd = mp::SpawnProcess(pid, [&](int fd) -> std::vector<std::string> {
+    const int fd = mp::SpawnProcess(pid, [&](int fd) -> std::vector<std::string> {
         fs::path path = process_argv0;
         path.remove_filename();
         path.append(new_exe_name);
@@ -23,7 +30,7 @@ auto Spawn(mp::EventLoop& loop, const std::string& process_argv0, const std::str
     return std::make_tuple(mp::ConnectStream<InitInterface>(loop, fd), pid);
 }
 
-void LogPrint(bool raise, const std::string& message)
+static void LogPrint(bool raise, const std::string& message)
 {
     if (raise) throw std::runtime_error(message);
     std::ofstream("debug.log", std::ios_base::app) << message << std::endl;
