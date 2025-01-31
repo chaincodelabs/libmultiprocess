@@ -157,7 +157,7 @@ struct DestructorCatcher
     {
     }
     ~DestructorCatcher() noexcept try {
-    } catch (const kj::Exception& e) {
+    } catch (const kj::Exception& e) { // NOLINT(bugprone-empty-catch)
     }
 };
 
