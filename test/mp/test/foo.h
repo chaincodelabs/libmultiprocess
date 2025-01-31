@@ -21,7 +21,7 @@ struct FooStruct
     std::vector<bool> vbool;
 };
 
-enum class FooEnum : int { ONE = 1, TWO = 2, };
+enum class FooEnum : int { ONE = 1, TWO = 2, }; // NOLINT(performance-enum-size)
 
 struct FooCustom
 {
