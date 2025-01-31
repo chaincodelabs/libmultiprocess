@@ -488,7 +488,7 @@ ProxyServerBase<Interface, Impl>::~ProxyServerBase()
             CleanupRun(fns);
         });
     }
-    assert(m_context.cleanup_fns.size() == 0);
+    assert(m_context.cleanup_fns.empty());
     std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
     m_context.connection->m_loop.removeClient(lock);
 }
