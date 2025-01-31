@@ -247,7 +247,7 @@ struct Waiter
     template <typename Fn>
     void post(Fn&& fn)
     {
-        std::unique_lock<std::mutex> lock(m_mutex);
+        const std::unique_lock<std::mutex> lock(m_mutex);
         assert(!m_fn);
         m_fn = std::move(fn);
         m_cv.notify_all();
@@ -269,7 +269,7 @@ struct Waiter
                 fn();
                 lock.lock();
             }
-            bool done = pred();
+            const bool done = pred();
             return done;
         });
     }

@@ -142,7 +142,7 @@ struct UnlockGuard
 template <typename Lock, typename Callback>
 void Unlock(Lock& lock, Callback&& callback)
 {
-    UnlockGuard<Lock> unlock(lock);
+    const UnlockGuard<Lock> unlock(lock);
     callback();
 }
 
