@@ -152,7 +152,7 @@ public:
     template <typename Callable>
     void sync(Callable&& callable)
     {
-        return post(std::ref(callable));
+        post(std::ref(callable));
     }
 
     //! Start asynchronous worker thread if necessary. This is only done if
