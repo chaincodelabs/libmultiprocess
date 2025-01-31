@@ -63,7 +63,7 @@ struct ProxyClient<Thread> : public ProxyClientBase<Thread, ::capnp::Void>
     ProxyClient(const ProxyClient&) = delete;
     ~ProxyClient();
 
-    void setCleanup(std::function<void()> fn);
+    void setCleanup(const std::function<void()>& fn);
 
     //! Cleanup function to run when the connection is closed. If the Connection
     //! gets destroyed before this ProxyClient<Thread> object, this cleanup
@@ -523,7 +523,7 @@ using ConnThread = ConnThreads::iterator;
 // Retrieve ProxyClient<Thread> object associated with this connection from a
 // map, or create a new one and insert it into the map. Return map iterator and
 // inserted bool.
-std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, Connection* connection, std::function<Thread::Client()> make_thread);
+std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, Connection* connection, const std::function<Thread::Client()>& make_thread);
 
 struct ThreadContext
 {
