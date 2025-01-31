@@ -281,7 +281,7 @@ bool EventLoop::done(std::unique_lock<std::mutex>& lock)
     return m_num_clients == 0 && m_async_fns.empty();
 }
 
-std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, Connection* connection, std::function<Thread::Client()> make_thread)
+std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, Connection* connection, const std::function<Thread::Client()>& make_thread)
 {
     std::unique_lock<std::mutex> lock(mutex); // NOLINT(misc-const-correctness)
     auto thread = threads.find(connection);
@@ -316,7 +316,7 @@ ProxyClient<Thread>::~ProxyClient()
     }
 }
 
-void ProxyClient<Thread>::setCleanup(std::function<void()> fn)
+void ProxyClient<Thread>::setCleanup(const std::function<void()>& fn)
 {
     assert(fn);
     assert(!m_cleanup_it);
