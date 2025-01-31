@@ -6,21 +6,22 @@
 #include <mp/util.h>
 
 #include <errno.h>
-#include <kj/array.h>
+#include <kj/common.h>
+#include <kj/string-tree.h>
 #include <pthread.h>
 #include <sstream>
 #include <stdio.h>
+#include <string>
 #include <sys/resource.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/un.h>
 #include <sys/wait.h>
 #include <system_error>
-#include <thread>
 #include <unistd.h>
+#include <utility>
+#include <vector>
 
 #ifdef __linux__
-#include <syscall.h>
+#include <sys/syscall.h>
 #endif
 
 #ifdef HAVE_PTHREAD_GETTHREADID_NP

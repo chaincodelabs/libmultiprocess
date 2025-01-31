@@ -7,11 +7,22 @@
 
 #include <algorithm>
 #include <capnp/schema-parser.h>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <errno.h>
 #include <fstream>
+#include <functional>
+#include <kj/array.h>
+#include <kj/common.h>
+#include <kj/filesystem.h>
+#include <kj/memory.h>
+#include <kj/string.h>
 #include <map>
 #include <set>
 #include <sstream>
+#include <stdexcept>
+#include <string>
 #include <system_error>
 #include <unistd.h>
 #include <vector>

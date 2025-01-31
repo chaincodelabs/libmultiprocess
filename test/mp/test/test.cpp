@@ -2,15 +2,22 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <mp/proxy-types.h>
+#include <mp/proxy-io.h>
 #include <mp/test/foo.capnp.h>
 #include <mp/test/foo.capnp.proxy.h>
 #include <mp/test/foo.h>
 
+#include <capnp/capability.h>
+#include <cstdio>
 #include <future>
+#include <functional>
+#include <memory>
 #include <kj/common.h>
 #include <kj/memory.h>
 #include <kj/test.h>
+#include <string>
+#include <thread>
+#include <utility>
 
 namespace mp {
 namespace test {
