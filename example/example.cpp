@@ -18,7 +18,7 @@
 
 namespace fs = std::filesystem;
 
-auto Spawn(mp::EventLoop& loop, const std::string& process_argv0, const std::string& new_exe_name)
+static auto Spawn(mp::EventLoop& loop, const std::string& process_argv0, const std::string& new_exe_name)
 {
     int pid;
     const int fd = mp::SpawnProcess(pid, [&](int fd) -> std::vector<std::string> {
@@ -30,7 +30,7 @@ auto Spawn(mp::EventLoop& loop, const std::string& process_argv0, const std::str
     return std::make_tuple(mp::ConnectStream<InitInterface>(loop, fd), pid);
 }
 
-void LogPrint(bool raise, const std::string& message)
+static void LogPrint(bool raise, const std::string& message)
 {
     if (raise) throw std::runtime_error(message);
     std::ofstream("debug.log", std::ios_base::app) << message << std::endl;
