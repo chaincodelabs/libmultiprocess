@@ -32,7 +32,7 @@ public:
     }
 };
 
-void LogPrint(bool raise, const std::string& message)
+static void LogPrint(bool raise, const std::string& message)
 {
     if (raise) throw std::runtime_error(message);
     std::ofstream("debug.log", std::ios_base::app) << message << std::endl;

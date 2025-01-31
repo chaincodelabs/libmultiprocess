@@ -75,7 +75,7 @@ static bool GetAnnotationInt32(const Reader& reader, uint64_t id, int32_t* resul
     return false;
 }
 
-void ForEachMethod(const capnp::InterfaceSchema& interface, const std::function<void(const capnp::InterfaceSchema& interface, const capnp::InterfaceSchema::Method)>& callback)
+static void ForEachMethod(const capnp::InterfaceSchema& interface, const std::function<void(const capnp::InterfaceSchema& interface, const capnp::InterfaceSchema::Method)>& callback)
 {
     for (const auto super : interface.getSuperclasses()) {
         ForEachMethod(super, callback);
@@ -89,7 +89,7 @@ using CharSlice = kj::ArrayPtr<const char>;
 
 // Overload for any type with a string .begin(), like kj::StringPtr and kj::ArrayPtr<char>.
 template <class OutputStream, class Array, const char* Enable = decltype(std::declval<Array>().begin())()>
-OutputStream& operator<<(OutputStream& os, const Array& array)
+static OutputStream& operator<<(OutputStream& os, const Array& array)
 {
     os.write(array.begin(), array.size());
     return os;
@@ -107,14 +107,14 @@ struct Format
     std::ostringstream m_os;
 };
 
-std::string Cap(kj::StringPtr str)
+static std::string Cap(kj::StringPtr str)
 {
     std::string result = str;
     if (!result.empty() && 'a' <= result[0] && result[0] <= 'z') result[0] -= 'a' - 'A';
     return result;
 }
 
-bool BoxedType(const ::capnp::Type& type)
+static bool BoxedType(const ::capnp::Type& type)
 {
     return !(type.isVoid() || type.isBool() || type.isInt8() || type.isInt16() || type.isInt32() || type.isInt64() ||
              type.isUInt8() || type.isUInt16() || type.isUInt32() || type.isUInt64() || type.isFloat32() ||
@@ -134,7 +134,7 @@ bool BoxedType(const ::capnp::Type& type)
 // include_prefix is "/a/b/c" include lines like
 // "#include <d/file.capnp.proxy.h>" "#include <d/file.capnp.proxy-types.h>"i
 // will be generated.
-void Generate(kj::StringPtr src_prefix,
+static void Generate(kj::StringPtr src_prefix,
     kj::StringPtr include_prefix,
     kj::StringPtr src_file,
     const std::vector<kj::StringPtr>& import_paths,
