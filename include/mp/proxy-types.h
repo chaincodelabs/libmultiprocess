@@ -626,7 +626,7 @@ void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, Fiel
                 } catch (...) {
                     exception = std::current_exception();
                 }
-                std::unique_lock<std::mutex> lock(invoke_context.thread_context.waiter->m_mutex);
+                std::unique_lock<std::mutex> lock(invoke_context.thread_context.waiter->m_mutex); // NOLINT(misc-const-correctness)
                 done = true;
                 invoke_context.thread_context.waiter->m_cv.notify_all();
             },
@@ -634,7 +634,7 @@ void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, Fiel
                 kj_exception = kj::str("kj::Exception: ", e).cStr();
                 proxy_client.m_context.connection->m_loop.logPlain()
                     << "{" << invoke_context.thread_context.thread_name << "} IPC client exception " << kj_exception;
-                std::unique_lock<std::mutex> lock(invoke_context.thread_context.waiter->m_mutex);
+                std::unique_lock<std::mutex> lock(invoke_context.thread_context.waiter->m_mutex); // NOLINT(misc-const-correctness)
                 done = true;
                 invoke_context.thread_context.waiter->m_cv.notify_all();
             }));

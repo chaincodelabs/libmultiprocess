@@ -14,7 +14,7 @@ namespace fs = std::filesystem;
 auto Spawn(mp::EventLoop& loop, const std::string& process_argv0, const std::string& new_exe_name)
 {
     int pid;
-    int fd = mp::SpawnProcess(pid, [&](int fd) -> std::vector<std::string> {
+    const int fd = mp::SpawnProcess(pid, [&](int fd) -> std::vector<std::string> {
         fs::path path = process_argv0;
         path.remove_filename();
         path.append(new_exe_name);

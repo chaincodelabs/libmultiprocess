@@ -102,7 +102,7 @@ Connection::~Connection()
         m_sync_cleanup_fns.pop_front();
     }
     while (!m_async_cleanup_fns.empty()) {
-        std::unique_lock<std::mutex> lock(m_loop.m_mutex);
+        std::unique_lock<std::mutex> lock(m_loop.m_mutex); // NOLINT(misc-const-correctness)
         m_loop.m_async_fns.emplace_back(std::move(m_async_cleanup_fns.front()));
         m_async_cleanup_fns.pop_front();
     }
@@ -113,7 +113,7 @@ Connection::~Connection()
 
 CleanupIt Connection::addSyncCleanup(std::function<void()> fn)
 {
-    std::unique_lock<std::mutex> lock(m_loop.m_mutex);
+    std::unique_lock<std::mutex> lock(m_loop.m_mutex); // NOLINT(misc-const-correctness)
     // Add cleanup callbacks to the front of list, so sync cleanup functions run
     // in LIFO order. This is a good approach because sync cleanup functions are
     // added as client objects are created, and it is natural to clean up
@@ -127,13 +127,13 @@ CleanupIt Connection::addSyncCleanup(std::function<void()> fn)
 
 void Connection::removeSyncCleanup(CleanupIt it)
 {
-    std::unique_lock<std::mutex> lock(m_loop.m_mutex);
+    std::unique_lock<std::mutex> lock(m_loop.m_mutex); // NOLINT(misc-const-correctness)
     m_sync_cleanup_fns.erase(it);
 }
 
 void Connection::addAsyncCleanup(std::function<void()> fn)
 {
-    std::unique_lock<std::mutex> lock(m_loop.m_mutex);
+    std::unique_lock<std::mutex> lock(m_loop.m_mutex); // NOLINT(misc-const-correctness)
     // Add async cleanup callbacks to the back of the list. Unlike the sync
     // cleanup list, this list order is more significant because it determines
     // the order server objects are destroyed when there is a sudden disconnect,
@@ -169,7 +169,7 @@ EventLoop::EventLoop(const char* exe_name, LogFn log_fn, void* context)
 EventLoop::~EventLoop()
 {
     if (m_async_thread.joinable()) m_async_thread.join();
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex); // NOLINT(misc-const-correctness)
     KJ_ASSERT(m_post_fn == nullptr);
     KJ_ASSERT(m_async_fns.empty());
     KJ_ASSERT(m_wait_fd == -1);
@@ -192,7 +192,7 @@ void EventLoop::loop()
     int post_fd{m_post_fd};
     char buffer = 0;
     for (;;) {
-        size_t read_bytes = wait_stream->read(&buffer, 0, 1).wait(m_io_context.waitScope);
+        const size_t read_bytes = wait_stream->read(&buffer, 0, 1).wait(m_io_context.waitScope);
         if (read_bytes != 1) throw std::logic_error("EventLoop wait_stream closed unexpectedly");
         std::unique_lock<std::mutex> lock(m_mutex);
         if (m_post_fn) {
@@ -212,7 +212,7 @@ void EventLoop::loop()
     log() << "EventLoop::loop bye.";
     wait_stream = nullptr;
     KJ_SYSCALL(::close(post_fd));
-    std::unique_lock<std::mutex> lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex); // NOLINT(misc-const-correctness)
     m_wait_fd = -1;
     m_post_fd = -1;
 }
@@ -258,7 +258,7 @@ void EventLoop::startAsyncThread(std::unique_lock<std::mutex>& lock)
             while (true) {
                 if (!m_async_fns.empty()) {
                     addClient(lock);
-                    std::function<void()> fn = std::move(m_async_fns.front());
+                    const std::function<void()> fn = std::move(m_async_fns.front());
                     m_async_fns.pop_front();
                     Unlock(lock, fn);
                     removeClient(lock);
@@ -282,7 +282,7 @@ bool EventLoop::done(std::unique_lock<std::mutex>& lock)
 
 std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, Connection* connection, std::function<Thread::Client()> make_thread)
 {
-    std::unique_lock<std::mutex> lock(mutex);
+    std::unique_lock<std::mutex> lock(mutex); // NOLINT(misc-const-correctness)
     auto thread = threads.find(connection);
     if (thread != threads.end()) return {thread, false};
     thread = threads.emplace(
@@ -299,7 +299,7 @@ std::tuple<ConnThread, bool> SetThread(ConnThreads& threads, std::mutex& mutex, 
         // try unregister this callback after connection is destroyed.
         thread->second.m_cleanup_it.reset();
         // Remove connection pointer about to be destroyed from the map
-        std::unique_lock<std::mutex> lock(mutex);
+        std::unique_lock<std::mutex> lock(mutex); // NOLINT(misc-const-correctness)
         threads.erase(thread);
     });
     return {thread, true};
@@ -339,7 +339,7 @@ ProxyServer<Thread>::~ProxyServer()
     assert(m_thread_context.waiter.get());
     std::unique_ptr<Waiter> waiter;
     {
-        std::unique_lock<std::mutex> lock(m_thread_context.waiter->m_mutex);
+        std::unique_lock<std::mutex> lock(m_thread_context.waiter->m_mutex); // NOLINT(misc-const-correctness)
         //! Reset thread context waiter pointer, as shutdown signal for done
         //! lambda passed as waiter->wait() argument in makeThread code below.
         waiter = std::move(m_thread_context.waiter);
@@ -367,7 +367,7 @@ ProxyServer<ThreadMap>::ProxyServer(Connection& connection) : m_connection(conne
 
 kj::Promise<void> ProxyServer<ThreadMap>::makeThread(MakeThreadContext context)
 {
-    std::string from = context.getParams().getName();
+    const std::string from = context.getParams().getName();
     std::promise<ThreadContext*> thread_context;
     std::thread thread([&thread_context, from, this]() {
         g_thread_context.thread_name = ThreadName(m_connection.m_loop.m_exe_name) + " (from " + from + ")";

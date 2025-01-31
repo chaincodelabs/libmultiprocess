@@ -151,7 +151,7 @@ void Generate(kj::StringPtr src_prefix,
     }
 
     std::string include_base = include_path;
-    std::string::size_type p = include_base.rfind('.');
+    const std::string::size_type p = include_base.rfind('.');
     if (p != std::string::npos) include_base.erase(p);
 
     std::vector<std::string> args;
@@ -165,19 +165,19 @@ void Generate(kj::StringPtr src_prefix,
     }
     args.emplace_back("--output=" capnp_PREFIX "/bin/capnpc-c++");
     args.emplace_back(src_file);
-    int pid = fork();
+    const int pid = fork();
     if (pid == -1) {
         throw std::system_error(errno, std::system_category(), "fork");
     }
     if (!pid) {
         mp::ExecProcess(args);
     }
-    int status = mp::WaitProcess(pid);
+    const int status = mp::WaitProcess(pid);
     if (status) {
         throw std::runtime_error("Invoking " capnp_PREFIX "/bin/capnp failed");
     }
 
-    capnp::SchemaParser parser;
+    const capnp::SchemaParser parser;
     auto directory_pointers = kj::heapArray<const kj::ReadableDirectory*>(import_dirs.size());
     for (size_t i = 0; i < import_dirs.size(); ++i) {
         directory_pointers[i] = import_dirs[i].get();
@@ -244,7 +244,7 @@ void Generate(kj::StringPtr src_prefix,
     GetAnnotationText(file_schema.getProto(), NAMESPACE_ANNOTATION_ID, &message_namespace);
 
     std::string base_name = include_base;
-    size_t output_slash = base_name.rfind('/');
+    const size_t output_slash = base_name.rfind('/');
     if (output_slash != std::string::npos) {
         base_name.erase(0, output_slash + 1);
     }
@@ -260,7 +260,7 @@ void Generate(kj::StringPtr src_prefix,
 
     auto add_accessor = [&](kj::StringPtr name) {
         if (!accessors_done.insert(name).second) return;
-        std::string cap = Cap(name);
+        const std::string cap = Cap(name);
         accessors << "struct " << cap << "\n";
         accessors << "{\n";
         accessors << "    template<typename S> static auto get(S&& s) -> decltype(s.get" << cap << "()) { return s.get" << cap << "(); }\n";
@@ -368,19 +368,19 @@ void Generate(kj::StringPtr src_prefix,
             server << "    using ProxyServerCustom::ProxyServerCustom;\n";
             server << "    ~ProxyServer();\n";
 
-            std::ostringstream client_construct;
-            std::ostringstream client_destroy;
+            const std::ostringstream client_construct;
+            const std::ostringstream client_destroy;
 
             int method_ordinal = 0;
             ForEachMethod(interface, [&] (const capnp::InterfaceSchema& method_interface, const capnp::InterfaceSchema::Method& method) {
-                kj::StringPtr method_name = method.getProto().getName();
+                const kj::StringPtr method_name = method.getProto().getName();
                 kj::StringPtr proxied_method_name = method_name;
                 GetAnnotationText(method.getProto(), NAME_ANNOTATION_ID, &proxied_method_name);
 
                 const std::string method_prefix = Format() << message_namespace << "::" << method_interface.getShortDisplayName()
                                                            << "::" << Cap(method_name);
-                bool is_construct = method_name == "construct";
-                bool is_destroy = method_name == "destroy";
+                const bool is_construct = method_name == "construct";
+                const bool is_destroy = method_name == "destroy";
 
                 struct Field
                 {
@@ -530,9 +530,9 @@ void Generate(kj::StringPtr src_prefix,
                     server_invoke_end << ")";
                 }
 
-                std::string static_str{is_construct || is_destroy ? "static " : ""};
-                std::string super_str{is_construct || is_destroy ? "Super& super" : ""};
-                std::string self_str{is_construct || is_destroy ? "super" : "*this"};
+                const std::string static_str{is_construct || is_destroy ? "static " : ""};
+                const std::string super_str{is_construct || is_destroy ? "Super& super" : ""};
+                const std::string self_str{is_construct || is_destroy ? "super" : "*this"};
 
                 client << "    using M" << method_ordinal << " = ProxyClientMethodTraits<" << method_prefix
                        << "Params>;\n";

@@ -37,7 +37,7 @@ int main(int argc, char** argv)
         return 1;
     }
     mp::EventLoop loop("mpprinter", LogPrint);
-    int fd = std::stoi(argv[1]);
+    const int fd = std::stoi(argv[1]);
     std::unique_ptr<Init> init = std::make_unique<InitImpl>();
     mp::ServeStream<InitInterface>(loop, fd, *init);
     loop.loop();

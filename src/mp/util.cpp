@@ -80,7 +80,7 @@ std::string LogEscape(const kj::StringTree& string)
     std::string result;
     string.visit([&](const kj::ArrayPtr<const char>& piece) {
         if (result.size() > MAX_SIZE) return;
-        for (char c : piece) {
+        for (const char c : piece) {
             if (c == '\\') {
                 result.append("\\\\");
             } else if (c < 0x20 || c > 0x7e) {
@@ -116,7 +116,7 @@ int SpawnProcess(int& pid, FdToArgsFn&& fd_to_args)
     }
     if (!pid) {
         // Child process must close all potentially open descriptors, except socket 0.
-        int maxFd = MaxFd();
+        const int maxFd = MaxFd();
         for (int fd = 3; fd < maxFd; ++fd) {
             if (fd != fds[0]) {
                 close(fd);
