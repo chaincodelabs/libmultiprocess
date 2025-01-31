@@ -48,6 +48,7 @@ configure_file(include/mp/config.h.in "${CMAKE_CURRENT_BINARY_DIR}/include/mp/co
 
 # Generated C++ Capn'Proto schema files
 capnp_generate_cpp(MP_PROXY_SRCS MP_PROXY_HDRS include/mp/proxy.capnp)
+set_source_files_properties(${MP_PROXY_SRCS} PROPERTIES SKIP_LINTING ON)
 
 # util library
 add_library(mputil OBJECT src/mp/util.cpp)
