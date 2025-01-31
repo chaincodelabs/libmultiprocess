@@ -60,15 +60,23 @@ function(target_capnp_sources target include_prefix)
     "IMPORT_PATHS"  # multi_value_keywords
   )
 
-  if(NOT TARGET Libmultiprocess::mpgen)
-    message(FATAL_ERROR "Target 'Libmultiprocess::mpgen' does not exist.")
+  set(MPGEN_BINARY "")
+  if(EXTERNAL_MPGEN)
+    set(MPGEN_BINARY "${EXTERNAL_MPGEN}")
+    if(NOT EXISTS "${MPGEN_BINARY}")
+      message(FATAL_ERROR "EXTERNAL_MPGEN: \"${MPGEN_BINARY}\" does not exist.")
+    endif()
+  elseif(TARGET Libmultiprocess::multiprocess)
+    set(MPGEN_BINARY $<TARGET_FILE:Libmultiprocess::mpgen>)
+  else()
+    message(FATAL_ERROR "No usable mpgen. Set EXTERNAL_MPGEN or enable the internal target.")
   endif()
 
   set(generated_headers "")
   foreach(capnp_file IN LISTS TCS_UNPARSED_ARGUMENTS)
     add_custom_command(
       OUTPUT ${capnp_file}.c++ ${capnp_file}.h ${capnp_file}.proxy-client.c++ ${capnp_file}.proxy-types.h ${capnp_file}.proxy-server.c++ ${capnp_file}.proxy-types.c++ ${capnp_file}.proxy.h
-      COMMAND Libmultiprocess::mpgen ${CMAKE_CURRENT_SOURCE_DIR} ${include_prefix} ${CMAKE_CURRENT_SOURCE_DIR}/${capnp_file} ${TCS_IMPORT_PATHS} ${MP_INCLUDE_DIR}
+      COMMAND ${MPGEN_BINARY} ${CMAKE_CURRENT_SOURCE_DIR} ${include_prefix} ${CMAKE_CURRENT_SOURCE_DIR}/${capnp_file} ${TCS_IMPORT_PATHS} ${MP_INCLUDE_DIR}
       DEPENDS ${capnp_file}
       VERBATIM
     )
