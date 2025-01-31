@@ -221,7 +221,8 @@ void EventLoop::loop()
 void EventLoop::post(const std::function<void()>& fn)
 {
     if (std::this_thread::get_id() == m_thread_id) {
-        return fn();
+        fn();
+        return;
     }
     std::unique_lock<std::mutex> lock(m_mutex);
     m_cv.wait(lock, [this] { return m_post_fn == nullptr; });
