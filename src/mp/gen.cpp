@@ -214,8 +214,11 @@ static void Generate(kj::StringPtr src_prefix,
     cpp_types << "namespace mp {\n";
 
     std::string guard = output_path;
-    std::transform(guard.begin(), guard.end(), guard.begin(), [](unsigned char c) {
-        return ('0' <= c && c <= '9') ? c : ('A' <= c && c <= 'Z') ? c : ('a' <= c && c <= 'z') ? c - 'a' + 'A' : '_';
+    std::transform(guard.begin(), guard.end(), guard.begin(), [](unsigned char c) -> unsigned char {
+        if ('0' <= c && c <= '9') return c;
+        if ('A' <= c && c <= 'Z') return c;
+        if ('a' <= c && c <= 'z') return c - 'a' + 'A';
+        return '_';
     });
 
     std::ofstream inl(output_path + ".proxy-types.h");
@@ -495,7 +498,13 @@ static void Generate(kj::StringPtr src_prefix,
                     auto field_type = f.getType();
 
                     std::ostringstream field_flags;
-                    field_flags << (!field.param_is_set ? "FIELD_OUT" : field.result_is_set ? "FIELD_IN | FIELD_OUT" : "FIELD_IN");
+                    if (!field.param_is_set) {
+                        field_flags << "FIELD_OUT";
+                    } else if (field.result_is_set) {
+                        field_flags << "FIELD_IN | FIELD_OUT";
+                    } else {
+                        field_flags << "FIELD_IN";
+                    }
                     if (field.optional) field_flags << " | FIELD_OPTIONAL";
                     if (field.requested) field_flags << " | FIELD_REQUESTED";
                     if (BoxedType(field_type)) field_flags << " | FIELD_BOXED";
