@@ -4,10 +4,17 @@
 
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <init.capnp.h>
-#include <init.capnp.proxy-types.h>
+#include <init.capnp.proxy.h>
 #include <iostream>
 #include <mp/proxy-io.h>
+#include <mp/util.h>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <tuple>
+#include <vector>
 
 namespace fs = std::filesystem;
 

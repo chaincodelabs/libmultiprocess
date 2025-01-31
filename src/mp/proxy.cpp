@@ -31,6 +31,7 @@
 #include <string>
 #include <sys/socket.h>
 #include <thread>
+#include <tuple>
 #include <unistd.h>
 #include <utility>
 

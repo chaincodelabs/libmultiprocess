@@ -5,13 +5,15 @@
 #include <calculator.h>
 #include <fstream>
 #include <init.capnp.h>
-#include <init.capnp.proxy-types.h>
+#include <init.capnp.proxy.h> // NOLINT(misc-include-cleaner)
 #include <init.h>
 #include <iostream>
 #include <memory>
 #include <mp/proxy-io.h>
 #include <printer.h>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 class CalculatorImpl : public Calculator
 {
