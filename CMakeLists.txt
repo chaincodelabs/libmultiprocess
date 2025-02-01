@@ -28,6 +28,7 @@ set(Libmultiprocess_EXTERNAL_MPGEN "" CACHE FILEPATH "If specified, should be fu
 
 include("cmake/compat_config.cmake")
 include("cmake/pthread_checks.cmake")
+include(CTest)
 include(GNUInstallDirs)
 
 # Set convenience variables for subdirectories.
