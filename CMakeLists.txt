@@ -55,8 +55,8 @@ capnp_generate_cpp(MP_PROXY_SRCS MP_PROXY_HDRS include/mp/proxy.capnp)
 add_library(mputil OBJECT src/mp/util.cpp)
 target_include_directories(mputil PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-  ${CAPNP_INCLUDE_DIRECTORY})
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
+target_link_libraries(mputil PUBLIC CapnProto::kj)
 
 # libmultiprocess.a runtime library
 set(MP_PUBLIC_HEADERS
@@ -95,12 +95,11 @@ add_library(Libmultiprocess::multiprocess ALIAS multiprocess)
 target_include_directories(multiprocess PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-  ${CAPNP_INCLUDE_DIRECTORY})
-target_link_libraries(multiprocess PRIVATE CapnProto::capnp)
-target_link_libraries(multiprocess PRIVATE CapnProto::capnp-rpc)
-target_link_libraries(multiprocess PRIVATE CapnProto::kj)
-target_link_libraries(multiprocess PRIVATE CapnProto::kj-async)
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+target_link_libraries(multiprocess PUBLIC CapnProto::capnp)
+target_link_libraries(multiprocess PUBLIC CapnProto::capnp-rpc)
+target_link_libraries(multiprocess PUBLIC CapnProto::kj)
+target_link_libraries(multiprocess PUBLIC CapnProto::kj-async)
 set_target_properties(multiprocess PROPERTIES
     PUBLIC_HEADER "${MP_PUBLIC_HEADERS}")
 install(TARGETS multiprocess EXPORT LibTargets
