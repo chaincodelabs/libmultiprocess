@@ -71,7 +71,7 @@ std::string ThreadName(const char* exe_name)
     buffer << std::this_thread::get_id();
 #endif
 
-    return std::move(buffer.str());
+    return std::move(buffer).str();
 }
 
 std::string LogEscape(const kj::StringTree& string)
