@@ -19,7 +19,7 @@
 #include <thread>
 #include <unistd.h>
 
-#if __linux__
+#ifdef __linux__
 #include <syscall.h>
 #endif
 
@@ -59,7 +59,7 @@ std::string ThreadName(const char* exe_name)
 
     // Prefer platform specific thread ids over the standard C++11 ones because
     // the former are shorter and are the same as what gdb prints "LWP ...".
-#if __linux__
+#ifdef __linux__
     buffer << syscall(SYS_gettid);
 #elif defined(HAVE_PTHREAD_THREADID_NP)
     uint64_t tid = 0;
