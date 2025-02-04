@@ -630,7 +630,7 @@ int main(int argc, char** argv)
     } else {
         throw std::runtime_error(std::string("Failed to open src_prefix prefix directory: ") + argv[1]);
     }
-    for (size_t i = 4; i < argc; ++i) {
+    for (size_t i = 4; i < static_cast<size_t>(argc); ++i) {
         KJ_IF_MAYBE(dir, fs->getRoot().tryOpenSubdir(cwd.evalNative(argv[i]))) {
             import_paths.emplace_back(argv[i]);
             import_dirs.emplace_back(kj::mv(*dir));
