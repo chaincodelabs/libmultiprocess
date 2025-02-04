@@ -14,9 +14,10 @@
 
 #include <assert.h>
 #include <functional>
-#include <optional>
+#include <kj/function.h>
 #include <map>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -163,7 +164,7 @@ public:
 
     //! Run function on event loop thread. Does not return until function completes.
     //! Must be called while the loop() function is active.
-    void post(const std::function<void()>& fn);
+    void post(kj::Function<void()> fn);
 
     //! Wrapper around EventLoop::post that takes advantage of the
     //! fact that callable will not go out of scope to avoid requirement that it
@@ -171,7 +172,7 @@ public:
     template <typename Callable>
     void sync(Callable&& callable)
     {
-        post(std::ref(callable));
+        post(std::forward<Callable>(callable));
     }
 
     //! Start asynchronous worker thread if necessary. This is only done if
@@ -211,7 +212,7 @@ public:
     std::thread m_async_thread;
 
     //! Callback function to run on event loop thread during post() or sync() call.
-    const std::function<void()>* m_post_fn = nullptr;
+    kj::Function<void()>* m_post_fn = nullptr;
 
     //! Callback functions to run on async thread.
     CleanupList m_async_fns;
@@ -279,11 +280,9 @@ struct Waiter
             // in the case where a capnp response is sent and a brand new
             // request is immediately received.
             while (m_fn) {
-                auto fn = std::move(m_fn);
-                m_fn = nullptr;
-                lock.unlock();
-                fn();
-                lock.lock();
+                auto fn = std::move(*m_fn);
+                m_fn.reset();
+                Unlock(lock, fn);
             }
             const bool done = pred();
             return done;
@@ -292,7 +291,7 @@ struct Waiter
 
     std::mutex m_mutex;
     std::condition_variable m_cv;
-    std::function<void()> m_fn;
+    std::optional<kj::Function<void()>> m_fn;
 };
 
 //! Object holding network & rpc state associated with either an incoming server

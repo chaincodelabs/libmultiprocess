@@ -22,6 +22,7 @@
 #include <kj/common.h>
 #include <kj/debug.h>
 #include <kj/exception.h>
+#include <kj/function.h>
 #include <kj/memory.h>
 #include <map>
 #include <memory>
@@ -247,7 +248,7 @@ void EventLoop::loop()
     m_post_fd = -1;
 }
 
-void EventLoop::post(const std::function<void()>& fn)
+void EventLoop::post(kj::Function<void()> fn)
 {
     if (std::this_thread::get_id() == m_thread_id) {
         fn();
