@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <kj/array.h>
 #include <kj/common.h>
 #include <kj/filesystem.h>
@@ -637,7 +638,7 @@ static void Generate(kj::StringPtr src_prefix,
 int main(int argc, char** argv)
 {
     if (argc < 3) {
-        fprintf(stderr, "Usage: " PROXY_BIN " SRC_PREFIX INCLUDE_PREFIX SRC_FILE [IMPORT_PATH...]\n");
+        std::cerr << "Usage: " << PROXY_BIN << " SRC_PREFIX INCLUDE_PREFIX SRC_FILE [IMPORT_PATH...]\n";
         exit(1);
     }
     std::vector<kj::StringPtr> import_paths;
