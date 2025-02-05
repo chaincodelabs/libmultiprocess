@@ -39,17 +39,17 @@ struct StructField
 
     // clang-format off
     template<typename A = Accessor> auto get() const -> decltype(A::get(this->m_struct)) { return A::get(this->m_struct); }
-    template<typename A = Accessor> auto has() const -> typename std::enable_if<A::optional, bool>::type { return A::getHas(m_struct); }
-    template<typename A = Accessor> auto has() const -> typename std::enable_if<!A::optional && A::boxed, bool>::type { return A::has(m_struct); }
-    template<typename A = Accessor> auto has() const -> typename std::enable_if<!A::optional && !A::boxed, bool>::type { return true; }
-    template<typename A = Accessor> auto want() const -> typename std::enable_if<A::requested, bool>::type { return A::getWant(m_struct); }
-    template<typename A = Accessor> auto want() const -> typename std::enable_if<!A::requested, bool>::type { return true; }
+    template<typename A = Accessor> auto has() const -> std::enable_if_t<A::optional, bool> { return A::getHas(m_struct); }
+    template<typename A = Accessor> auto has() const -> std::enable_if_t<!A::optional && A::boxed, bool> { return A::has(m_struct); }
+    template<typename A = Accessor> auto has() const -> std::enable_if_t<!A::optional && !A::boxed, bool> { return true; }
+    template<typename A = Accessor> auto want() const -> std::enable_if_t<A::requested, bool> { return A::getWant(m_struct); }
+    template<typename A = Accessor> auto want() const -> std::enable_if_t<!A::requested, bool> { return true; }
     template<typename A = Accessor, typename... Args> decltype(auto) set(Args&&... args) const { return A::set(this->m_struct, std::forward<Args>(args)...); }
     template<typename A = Accessor, typename... Args> decltype(auto) init(Args&&... args) const { return A::init(this->m_struct, std::forward<Args>(args)...); }
-    template<typename A = Accessor> auto setHas() const -> typename std::enable_if<A::optional>::type { return A::setHas(m_struct); }
-    template<typename A = Accessor> auto setHas() const -> typename std::enable_if<!A::optional>::type { }
-    template<typename A = Accessor> auto setWant() const -> typename std::enable_if<A::requested>::type { return A::setWant(m_struct); }
-    template<typename A = Accessor> auto setWant() const -> typename std::enable_if<!A::requested>::type { }
+    template<typename A = Accessor> auto setHas() const -> std::enable_if_t<A::optional> { return A::setHas(m_struct); }
+    template<typename A = Accessor> auto setHas() const -> std::enable_if_t<!A::optional> { }
+    template<typename A = Accessor> auto setWant() const -> std::enable_if_t<A::requested> { return A::setWant(m_struct); }
+    template<typename A = Accessor> auto setWant() const -> std::enable_if_t<!A::requested> { }
     // clang-format on
 };
 
@@ -314,6 +314,9 @@ struct IterateFieldsHelper
     {
         static_cast<Derived*>(this)->handleField(std::forward<Arg1>(arg1), std::forward<Arg2>(arg2), ParamList());
     }
+private:
+    IterateFieldsHelper() = default;
+    friend Derived;
 };
 
 struct IterateFields : IterateFieldsHelper<IterateFields, 0>
@@ -372,14 +375,14 @@ struct ClientParam
         // position when unpacking tuple might be slower than pattern matching
         // approach in the stack overflow solution
         template <size_t I, typename... Args>
-        auto callBuild(Args&&... args) -> typename std::enable_if<(I < sizeof...(Types))>::type
+        auto callBuild(Args&&... args) -> std::enable_if_t<(I < sizeof...(Types))>
         {
             callBuild<I + 1>(std::forward<Args>(args)..., std::get<I>(m_client_param->m_values));
         }
 
         template <size_t I, typename Params, typename ParamList, typename... Values>
         auto callBuild(ClientInvokeContext& invoke_context, Params& params, ParamList, Values&&... values) ->
-            typename std::enable_if<(I == sizeof...(Types))>::type
+            std::enable_if_t<(I == sizeof...(Types))>
         {
             MaybeBuildField(std::integral_constant<bool, Accessor::in>(), ParamList(), invoke_context,
                 Make<StructField, Accessor>(params), std::forward<Values>(values)...);
@@ -400,14 +403,14 @@ struct ClientParam
         }
 
         template <int I, typename... Args>
-        auto callRead(Args&&... args) -> typename std::enable_if<(I < sizeof...(Types))>::type
+        auto callRead(Args&&... args) -> std::enable_if_t<(I < sizeof...(Types))>
         {
             callRead<I + 1>(std::forward<Args>(args)..., std::get<I>(m_client_param->m_values));
         }
 
         template <int I, typename Results, typename... Params, typename... Values>
         auto callRead(ClientInvokeContext& invoke_context, Results& results, TypeList<Params...>, Values&&... values)
-            -> typename std::enable_if<I == sizeof...(Types)>::type
+            -> std::enable_if_t<I == sizeof...(Types)>
         {
             MaybeReadField(std::integral_constant<bool, Accessor::out>(), TypeList<Decay<Params>...>(), invoke_context,
                 Make<StructField, Accessor>(results), ReadDestUpdate(values)...);
@@ -623,7 +626,7 @@ void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, Fiel
                 } catch (...) {
                     exception = std::current_exception();
                 }
-                std::unique_lock<std::mutex> lock(invoke_context.thread_context.waiter->m_mutex);
+                const std::unique_lock<std::mutex> lock(invoke_context.thread_context.waiter->m_mutex);
                 done = true;
                 invoke_context.thread_context.waiter->m_cv.notify_all();
             },
@@ -631,7 +634,7 @@ void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, Fiel
                 kj_exception = kj::str("kj::Exception: ", e).cStr();
                 proxy_client.m_context.connection->m_loop.logPlain()
                     << "{" << invoke_context.thread_context.thread_name << "} IPC client exception " << kj_exception;
-                std::unique_lock<std::mutex> lock(invoke_context.thread_context.waiter->m_mutex);
+                const std::unique_lock<std::mutex> lock(invoke_context.thread_context.waiter->m_mutex);
                 done = true;
                 invoke_context.thread_context.waiter->m_cv.notify_all();
             }));
@@ -648,7 +651,7 @@ void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, Fiel
 //! duplication and branching in generic code that forwards calls to functions.
 template <typename Fn, typename Ret>
 auto ReplaceVoid(Fn&& fn, Ret&& ret) ->
-    typename std::enable_if<std::is_same<void, decltype(fn())>::value, decltype(ret())>::type
+    std::enable_if_t<std::is_same_v<void, decltype(fn())>, decltype(ret())>
 {
     fn();
     return ret();
@@ -657,7 +660,7 @@ auto ReplaceVoid(Fn&& fn, Ret&& ret) ->
 //! Overload of above for non-void `fn()` case.
 template <typename Fn, typename Ret>
 auto ReplaceVoid(Fn&& fn, Ret&& ret) ->
-    typename std::enable_if<!std::is_same<void, decltype(fn())>::value, decltype(fn())>::type
+    std::enable_if_t<!std::is_same_v<void, decltype(fn())>, decltype(fn())>
 {
     return fn();
 }

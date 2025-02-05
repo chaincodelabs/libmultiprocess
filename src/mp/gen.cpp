@@ -7,11 +7,22 @@
 
 #include <algorithm>
 #include <capnp/schema-parser.h>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <errno.h>
 #include <fstream>
+#include <functional>
+#include <kj/array.h>
+#include <kj/common.h>
+#include <kj/filesystem.h>
+#include <kj/memory.h>
+#include <kj/string.h>
 #include <map>
 #include <set>
 #include <sstream>
+#include <stdexcept>
+#include <string>
 #include <system_error>
 #include <unistd.h>
 #include <vector>
@@ -64,7 +75,7 @@ static bool GetAnnotationInt32(const Reader& reader, uint64_t id, int32_t* resul
     return false;
 }
 
-void ForEachMethod(const capnp::InterfaceSchema& interface, const std::function<void(const capnp::InterfaceSchema& interface, const capnp::InterfaceSchema::Method)>& callback)
+static void ForEachMethod(const capnp::InterfaceSchema& interface, const std::function<void(const capnp::InterfaceSchema& interface, const capnp::InterfaceSchema::Method)>& callback)
 {
     for (const auto super : interface.getSuperclasses()) {
         ForEachMethod(super, callback);
@@ -78,7 +89,7 @@ using CharSlice = kj::ArrayPtr<const char>;
 
 // Overload for any type with a string .begin(), like kj::StringPtr and kj::ArrayPtr<char>.
 template <class OutputStream, class Array, const char* Enable = decltype(std::declval<Array>().begin())()>
-OutputStream& operator<<(OutputStream& os, const Array& array)
+static OutputStream& operator<<(OutputStream& os, const Array& array)
 {
     os.write(array.begin(), array.size());
     return os;
@@ -96,14 +107,14 @@ struct Format
     std::ostringstream m_os;
 };
 
-std::string Cap(kj::StringPtr str)
+static std::string Cap(kj::StringPtr str)
 {
     std::string result = str;
     if (!result.empty() && 'a' <= result[0] && result[0] <= 'z') result[0] -= 'a' - 'A';
     return result;
 }
 
-bool BoxedType(const ::capnp::Type& type)
+static bool BoxedType(const ::capnp::Type& type)
 {
     return !(type.isVoid() || type.isBool() || type.isInt8() || type.isInt16() || type.isInt32() || type.isInt64() ||
              type.isUInt8() || type.isUInt16() || type.isUInt32() || type.isUInt64() || type.isFloat32() ||
@@ -123,7 +134,7 @@ bool BoxedType(const ::capnp::Type& type)
 // include_prefix is "/a/b/c" include lines like
 // "#include <d/file.capnp.proxy.h>" "#include <d/file.capnp.proxy-types.h>"i
 // will be generated.
-void Generate(kj::StringPtr src_prefix,
+static void Generate(kj::StringPtr src_prefix,
     kj::StringPtr include_prefix,
     kj::StringPtr src_file,
     const std::vector<kj::StringPtr>& import_paths,
@@ -151,7 +162,7 @@ void Generate(kj::StringPtr src_prefix,
     }
 
     std::string include_base = include_path;
-    std::string::size_type p = include_base.rfind('.');
+    const std::string::size_type p = include_base.rfind('.');
     if (p != std::string::npos) include_base.erase(p);
 
     std::vector<std::string> args;
@@ -165,19 +176,19 @@ void Generate(kj::StringPtr src_prefix,
     }
     args.emplace_back("--output=" capnp_PREFIX "/bin/capnpc-c++");
     args.emplace_back(src_file);
-    int pid = fork();
+    const int pid = fork();
     if (pid == -1) {
         throw std::system_error(errno, std::system_category(), "fork");
     }
     if (!pid) {
         mp::ExecProcess(args);
     }
-    int status = mp::WaitProcess(pid);
+    const int status = mp::WaitProcess(pid);
     if (status) {
         throw std::runtime_error("Invoking " capnp_PREFIX "/bin/capnp failed");
     }
 
-    capnp::SchemaParser parser;
+    const capnp::SchemaParser parser;
     auto directory_pointers = kj::heapArray<const kj::ReadableDirectory*>(import_dirs.size());
     for (size_t i = 0; i < import_dirs.size(); ++i) {
         directory_pointers[i] = import_dirs[i].get();
@@ -203,8 +214,11 @@ void Generate(kj::StringPtr src_prefix,
     cpp_types << "namespace mp {\n";
 
     std::string guard = output_path;
-    std::transform(guard.begin(), guard.end(), guard.begin(), [](unsigned char c) {
-        return ('0' <= c && c <= '9') ? c : ('A' <= c && c <= 'Z') ? c : ('a' <= c && c <= 'z') ? c - 'a' + 'A' : '_';
+    std::transform(guard.begin(), guard.end(), guard.begin(), [](unsigned char c) -> unsigned char {
+        if ('0' <= c && c <= '9') return c;
+        if ('A' <= c && c <= 'Z') return c;
+        if ('a' <= c && c <= 'z') return c - 'a' + 'A';
+        return '_';
     });
 
     std::ofstream inl(output_path + ".proxy-types.h");
@@ -244,7 +258,7 @@ void Generate(kj::StringPtr src_prefix,
     GetAnnotationText(file_schema.getProto(), NAMESPACE_ANNOTATION_ID, &message_namespace);
 
     std::string base_name = include_base;
-    size_t output_slash = base_name.rfind('/');
+    const size_t output_slash = base_name.rfind('/');
     if (output_slash != std::string::npos) {
         base_name.erase(0, output_slash + 1);
     }
@@ -260,7 +274,7 @@ void Generate(kj::StringPtr src_prefix,
 
     auto add_accessor = [&](kj::StringPtr name) {
         if (!accessors_done.insert(name).second) return;
-        std::string cap = Cap(name);
+        const std::string cap = Cap(name);
         accessors << "struct " << cap << "\n";
         accessors << "{\n";
         accessors << "    template<typename S> static auto get(S&& s) -> decltype(s.get" << cap << "()) { return s.get" << cap << "(); }\n";
@@ -368,19 +382,19 @@ void Generate(kj::StringPtr src_prefix,
             server << "    using ProxyServerCustom::ProxyServerCustom;\n";
             server << "    ~ProxyServer();\n";
 
-            std::ostringstream client_construct;
-            std::ostringstream client_destroy;
+            const std::ostringstream client_construct;
+            const std::ostringstream client_destroy;
 
             int method_ordinal = 0;
             ForEachMethod(interface, [&] (const capnp::InterfaceSchema& method_interface, const capnp::InterfaceSchema::Method& method) {
-                kj::StringPtr method_name = method.getProto().getName();
+                const kj::StringPtr method_name = method.getProto().getName();
                 kj::StringPtr proxied_method_name = method_name;
                 GetAnnotationText(method.getProto(), NAME_ANNOTATION_ID, &proxied_method_name);
 
                 const std::string method_prefix = Format() << message_namespace << "::" << method_interface.getShortDisplayName()
                                                            << "::" << Cap(method_name);
-                bool is_construct = method_name == "construct";
-                bool is_destroy = method_name == "destroy";
+                const bool is_construct = method_name == "construct";
+                const bool is_destroy = method_name == "destroy";
 
                 struct Field
                 {
@@ -484,7 +498,13 @@ void Generate(kj::StringPtr src_prefix,
                     auto field_type = f.getType();
 
                     std::ostringstream field_flags;
-                    field_flags << (!field.param_is_set ? "FIELD_OUT" : field.result_is_set ? "FIELD_IN | FIELD_OUT" : "FIELD_IN");
+                    if (!field.param_is_set) {
+                        field_flags << "FIELD_OUT";
+                    } else if (field.result_is_set) {
+                        field_flags << "FIELD_IN | FIELD_OUT";
+                    } else {
+                        field_flags << "FIELD_IN";
+                    }
                     if (field.optional) field_flags << " | FIELD_OPTIONAL";
                     if (field.requested) field_flags << " | FIELD_REQUESTED";
                     if (BoxedType(field_type)) field_flags << " | FIELD_BOXED";
@@ -530,9 +550,9 @@ void Generate(kj::StringPtr src_prefix,
                     server_invoke_end << ")";
                 }
 
-                std::string static_str{is_construct || is_destroy ? "static " : ""};
-                std::string super_str{is_construct || is_destroy ? "Super& super" : ""};
-                std::string self_str{is_construct || is_destroy ? "super" : "*this"};
+                const std::string static_str{is_construct || is_destroy ? "static " : ""};
+                const std::string super_str{is_construct || is_destroy ? "Super& super" : ""};
+                const std::string self_str{is_construct || is_destroy ? "super" : "*this"};
 
                 client << "    using M" << method_ordinal << " = ProxyClientMethodTraits<" << method_prefix
                        << "Params>;\n";
@@ -630,7 +650,7 @@ int main(int argc, char** argv)
     } else {
         throw std::runtime_error(std::string("Failed to open src_prefix prefix directory: ") + argv[1]);
     }
-    for (size_t i = 4; i < argc; ++i) {
+    for (int i = 4; i < argc; ++i) {
         KJ_IF_MAYBE(dir, fs->getRoot().tryOpenSubdir(cwd.evalNative(argv[i]))) {
             import_paths.emplace_back(argv[i]);
             import_dirs.emplace_back(kj::mv(*dir));

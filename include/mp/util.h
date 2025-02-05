@@ -43,9 +43,9 @@ struct TypeList
 //! Example:
 //!   Make<std::pair>(5, true) // Constructs std::pair<int, bool>(5, true);
 template <template <typename...> class Class, typename... Types, typename... Args>
-Class<Types..., typename std::remove_reference<Args>::type...> Make(Args&&... args)
+Class<Types..., std::remove_reference_t<Args>...> Make(Args&&... args)
 {
-    return Class<Types..., typename std::remove_reference<Args>::type...>{std::forward<Args>(args)...};
+    return Class<Types..., std::remove_reference_t<Args>...>{std::forward<Args>(args)...};
 }
 
 //! Type helper splitting a TypeList into two halves at position index.
@@ -83,7 +83,7 @@ using RemoveCvRef = std::remove_cv_t<std::remove_reference_t<T>>;
 
 //! Type helper abbreviating std::decay.
 template <typename T>
-using Decay = typename std::decay<T>::type;
+using Decay = std::decay_t<T>;
 
 //! SFINAE helper, see using Require below.
 template <typename SfinaeExpr, typename Result_>
@@ -142,7 +142,7 @@ struct UnlockGuard
 template <typename Lock, typename Callback>
 void Unlock(Lock& lock, Callback&& callback)
 {
-    UnlockGuard<Lock> unlock(lock);
+    const UnlockGuard<Lock> unlock(lock);
     callback();
 }
 
@@ -157,7 +157,7 @@ struct DestructorCatcher
     {
     }
     ~DestructorCatcher() noexcept try {
-    } catch (const kj::Exception& e) {
+    } catch (const kj::Exception& e) { // NOLINT(bugprone-empty-catch)
     }
 };
 
@@ -181,7 +181,7 @@ struct AsyncCallable
 
 //! Construct AsyncCallable object.
 template <typename Callable>
-AsyncCallable<typename std::remove_reference<Callable>::type> MakeAsyncCallable(Callable&& callable)
+AsyncCallable<std::remove_reference_t<Callable>> MakeAsyncCallable(Callable&& callable)
 {
     return std::move(callable);
 }

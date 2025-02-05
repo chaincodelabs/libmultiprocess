@@ -6,21 +6,22 @@
 #include <mp/util.h>
 
 #include <errno.h>
-#include <kj/array.h>
+#include <kj/common.h>
+#include <kj/string-tree.h>
 #include <pthread.h>
 #include <sstream>
 #include <stdio.h>
+#include <string>
 #include <sys/resource.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/un.h>
 #include <sys/wait.h>
 #include <system_error>
-#include <thread>
 #include <unistd.h>
+#include <utility>
+#include <vector>
 
 #ifdef __linux__
-#include <syscall.h>
+#include <sys/syscall.h>
 #endif
 
 #ifdef HAVE_PTHREAD_GETTHREADID_NP
@@ -80,7 +81,7 @@ std::string LogEscape(const kj::StringTree& string)
     std::string result;
     string.visit([&](const kj::ArrayPtr<const char>& piece) {
         if (result.size() > MAX_SIZE) return;
-        for (char c : piece) {
+        for (const char c : piece) {
             if (c == '\\') {
                 result.append("\\\\");
             } else if (c < 0x20 || c > 0x7e) {
@@ -116,7 +117,7 @@ int SpawnProcess(int& pid, FdToArgsFn&& fd_to_args)
     }
     if (!pid) {
         // Child process must close all potentially open descriptors, except socket 0.
-        int maxFd = MaxFd();
+        const int maxFd = MaxFd();
         for (int fd = 3; fd < maxFd; ++fd) {
             if (fd != fds[0]) {
                 close(fd);
