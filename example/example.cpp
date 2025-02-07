@@ -3,7 +3,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <filesystem>
-#include <format>
 #include <fstream>
 #include <future>
 #include <init.capnp.h>
@@ -26,7 +25,7 @@ static auto Spawn(mp::EventLoop& loop, const std::string& process_argv0, const s
         fs::path path = process_argv0;
         path.remove_filename();
         path.append(new_exe_name);
-        return {path.string(), std::format("{:d}", fd)};
+        return {path.string(), std::to_string(fd)};
     });
     return std::make_tuple(mp::ConnectStream<InitInterface>(loop, fd), pid);
 }
