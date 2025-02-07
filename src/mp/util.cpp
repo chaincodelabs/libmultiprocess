@@ -6,7 +6,6 @@
 #include <mp/util.h>
 
 #include <errno.h>
-#include <format>
 #include <kj/common.h>
 #include <kj/string-tree.h>
 #include <pthread.h>
@@ -86,7 +85,9 @@ std::string LogEscape(const kj::StringTree& string)
             if (c == '\\') {
                 result.append("\\\\");
             } else if (c < 0x20 || c > 0x7e) {
-                result.append(std::format("\\{:02x}", c));
+                char escape[4];
+                snprintf(escape, 4, "\\%02x", c);
+                result.append(escape);
             } else {
                 result.push_back(c);
             }
