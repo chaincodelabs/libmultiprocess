@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <future>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <kj/common.h>
 #include <kj/memory.h>
@@ -27,7 +28,9 @@ KJ_TEST("Call FooInterface methods")
     std::promise<std::unique_ptr<ProxyClient<messages::FooInterface>>> foo_promise;
     std::function<void()> disconnect_client;
     std::thread thread([&]() {
-        EventLoop loop("mptest", [](bool raise, const std::string& log) { printf("LOG%i: %s\n", raise, log.c_str()); });
+        EventLoop loop("mptest", [](bool raise, const std::string& log) {
+            std::cout << "LOG" << raise << ": " << log << "\n";
+        });
         auto pipe = loop.m_io_context.provider->newTwoWayPipe();
 
         auto connection_client = std::make_unique<Connection>(loop, kj::mv(pipe.ends[0]));

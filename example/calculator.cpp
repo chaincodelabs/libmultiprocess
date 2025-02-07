@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <calculator.h>
+#include <charconv>
 #include <fstream>
 #include <init.capnp.h>
 #include <init.capnp.proxy.h> // NOLINT(misc-include-cleaner)
@@ -44,8 +45,12 @@ int main(int argc, char** argv)
         std::cout << "Usage: mpcalculator <fd>\n";
         return 1;
     }
+    int fd;
+    if (std::from_chars(argv[1], argv[1] + strlen(argv[1]), fd).ec != std::errc{}) {
+        std::cerr << argv[1] << " is not a number or is larger than an int\n";
+        return 1;
+    }
     mp::EventLoop loop("mpcalculator", LogPrint);
-    const int fd = std::stoi(argv[1]);
     std::unique_ptr<Init> init = std::make_unique<InitImpl>();
     mp::ServeStream<InitInterface>(loop, fd, *init);
     loop.loop();
