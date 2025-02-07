@@ -24,7 +24,7 @@ if(Libmultiprocess_ENABLE_CLANG_TIDY)
   set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXECUTABLE}")
 endif()
 
-set(Libmultiprocess_EXTERNAL_MPGEN "" CACHE FILEPATH "If specified, should be full path to an external mpgen binary to use rather than the one built internally.")
+set(MPGEN_EXECUTABLE "" CACHE FILEPATH "If specified, should be full path to an external mpgen binary to use rather than the one built internally.")
 
 include("cmake/compat_config.cmake")
 include("cmake/pthread_checks.cmake")
