@@ -8,6 +8,7 @@
 #include <mp/util.h>
 
 #include <array>
+#include <cassert>
 #include <functional>
 #include <list>
 #include <stddef.h>
@@ -46,6 +47,26 @@ inline void CleanupRun(CleanupList& fns) {
         fn();
     }
 }
+
+//! Event loop smart pointer automatically calling addClient and removeClient.
+//! If lock pointer is passed to constructor will use the provided lock,
+//! otherwise will lock EventLoop::m_mutex itself.
+class EventLoopRef
+{
+public:
+    explicit EventLoopRef(EventLoop& loop, std::unique_lock<std::mutex>* lock = nullptr);
+    EventLoopRef(EventLoopRef&& other) noexcept : m_loop(other.m_loop) { other.m_loop = nullptr; }
+    EventLoopRef(const EventLoopRef&) = delete;
+    EventLoopRef& operator=(const EventLoopRef&) = delete;
+    EventLoopRef& operator=(EventLoopRef&&) = delete;
+    ~EventLoopRef() { reset(); }
+    EventLoop& operator*() const { assert(m_loop); return *m_loop; }
+    EventLoop* operator->() const { assert(m_loop); return m_loop; }
+    bool reset(std::unique_lock<std::mutex>* lock = nullptr);
+
+    EventLoop* m_loop{nullptr};
+    std::unique_lock<std::mutex>* m_lock{nullptr};
+};
 
 //! Context data associated with proxy client and server classes.
 struct ProxyContext

@@ -18,6 +18,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace mp {
@@ -129,6 +130,20 @@ const char* TypeName()
     const char* short_name = strchr(display_name, ':');
     return short_name ? short_name + 1 : display_name;
 }
+
+//! Convenient wrapper around std::variant<T*, T>
+template <typename T>
+struct PtrOrValue {
+    std::variant<T*, T> data;
+
+    template <typename... Args>
+    PtrOrValue(T* ptr, Args&&... args) : data(ptr ? ptr : std::variant<T*, T>{std::in_place_type<T>, std::forward<Args>(args)...}) {}
+
+    T& operator*() { return data.index() ? std::get<T>(data) : *std::get<T*>(data); }
+    T* operator->() { return &**this; }
+    T& operator*() const { return data.index() ? std::get<T>(data) : *std::get<T*>(data); }
+    T* operator->() const { return &**this; }
+};
 
 //! Analog to std::lock_guard that unlocks instead of locks.
 template <typename Lock>

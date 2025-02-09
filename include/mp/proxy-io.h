@@ -129,6 +129,25 @@ std::string LongThreadName(const char* exe_name);
 
 //! Event loop implementation.
 //!
+//! Capn'proto threading model is very simple: all I/O operations are
+//! asynchronous and must be performed on a single thread. This includes:
+//!
+//! - Code starting an asynchronous operation (calling a function that returns a
+//!   promise object)
+//! - Code notifying that an asynchronous operation is complete (code using a
+//!   fulfiller object)
+//! - Code handling a completed operation (code chaining or waiting for a promise)
+//!
+//! All this code needs to run on one thread, and the EventLoop::loop() method
+//! is the entry point for this thread. ProxyClient and ProxyServer object that
+//! use other threads and need to perform I/O operations post to this thread
+//! using EventLoop::post() and EventLoop::sync() methods.
+//!
+//! Specifically, because ProxyClient methods can be called from arbitrary
+//! threads, and ProxyServer methods can run on arbitrary threads, ProxyClient
+//! methods use the EventLoop thread to send requests, and ProxyServer methods
+//! use the thread to return results.
+//!
 //! Based on https://groups.google.com/d/msg/capnproto/TuQFF1eH2-M/g81sHaTAAQAJ
 class EventLoop
 {
@@ -168,7 +187,8 @@ public:
     //! other IPC calls.
     void startAsyncThread(std::unique_lock<std::mutex>& lock);
 
-    //! Add/remove remote client reference counts.
+    //! Add/remove remote client reference counts. Can use EventLoopRef
+    //! below to avoid calling these directly.
     void addClient(std::unique_lock<std::mutex>& lock);
     bool removeClient(std::unique_lock<std::mutex>& lock);
     //! Check if loop should exit.
