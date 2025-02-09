@@ -187,10 +187,6 @@ public:
     //! other IPC calls.
     void startAsyncThread(std::unique_lock<std::mutex>& lock);
 
-    //! Add/remove remote client reference counts. Can use EventLoopRef
-    //! below to avoid calling these directly.
-    void addClient(std::unique_lock<std::mutex>& lock);
-    bool removeClient(std::unique_lock<std::mutex>& lock);
     //! Check if loop should exit.
     bool done(std::unique_lock<std::mutex>& lock);
 

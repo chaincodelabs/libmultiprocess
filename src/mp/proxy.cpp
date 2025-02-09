@@ -51,14 +51,25 @@ void LoggingErrorHandler::taskFailed(kj::Exception&& exception)
 EventLoopRef::EventLoopRef(EventLoop& loop, std::unique_lock<std::mutex>* lock) : m_loop(&loop), m_lock(lock)
 {
     auto loop_lock{PtrOrValue{m_lock, m_loop->m_mutex}};
-    m_loop->addClient(*loop_lock);
+    m_loop->m_num_clients += 1;
 }
 
-bool EventLoopRef::reset(std::unique_lock<std::mutex>* lock) {
+bool EventLoopRef::reset(std::unique_lock<std::mutex>* lock)
+{
     bool done = false;
     if (m_loop) {
         auto loop_lock{PtrOrValue{lock ? lock : m_lock, m_loop->m_mutex}};
-        done = m_loop->removeClient(*loop_lock);
+        assert(m_loop->m_num_clients > 0);
+        m_loop->m_num_clients -= 1;
+        if (m_loop->done(*loop_lock)) {
+            done = true;
+            m_loop->m_cv.notify_all();
+            int post_fd{m_loop->m_post_fd};
+            loop_lock->unlock();
+            char buffer = 0;
+            KJ_SYSCALL(write(post_fd, &buffer, 1)); // NOLINT(bugprone-suspicious-semicolon)
+            return true;
+        }
         m_loop = nullptr;
     }
     return done;
@@ -220,7 +231,7 @@ void EventLoop::loop()
             m_cv.notify_all();
         } else if (done(lock)) {
             // Intentionally do not break if m_post_fn was set, even if done()
-            // would return true, to ensure that the removeClient write(post_fd)
+            // would return true, to ensure that the EventLoopRef write(post_fd)
             // call always succeeds and the loop does not exit between the time
             // that the done condition is set and the write call is made.
             break;
@@ -252,23 +263,6 @@ void EventLoop::post(const std::function<void()>& fn)
         KJ_SYSCALL(write(post_fd, &buffer, 1));
     });
     m_cv.wait(lock, [this, &fn] { return m_post_fn != &fn; });
-}
-
-void EventLoop::addClient(std::unique_lock<std::mutex>& lock) { m_num_clients += 1; }
-
-bool EventLoop::removeClient(std::unique_lock<std::mutex>& lock)
-{
-    assert(m_num_clients > 0);
-    m_num_clients -= 1;
-    if (done(lock)) {
-        m_cv.notify_all();
-        int post_fd{m_post_fd};
-        lock.unlock();
-        char buffer = 0;
-        KJ_SYSCALL(write(post_fd, &buffer, 1)); // NOLINT(bugprone-suspicious-semicolon)
-        return true;
-    }
-    return false;
 }
 
 void EventLoop::startAsyncThread(std::unique_lock<std::mutex>& lock)

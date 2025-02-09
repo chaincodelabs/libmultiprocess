@@ -48,7 +48,7 @@ inline void CleanupRun(CleanupList& fns) {
     }
 }
 
-//! Event loop smart pointer automatically calling addClient and removeClient.
+//! Event loop smart pointer automatically managing m_num_clients.
 //! If lock pointer is passed to constructor will use the provided lock,
 //! otherwise will lock EventLoop::m_mutex itself.
 class EventLoopRef
