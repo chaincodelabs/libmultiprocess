@@ -72,9 +72,10 @@ public:
 struct ProxyContext
 {
     Connection* connection;
+    EventLoopRef loop;
     CleanupList cleanup_fns;
 
-    ProxyContext(Connection* connection) : connection(connection) {}
+    ProxyContext(Connection* connection);
 };
 
 //! Base class for generated ProxyClient classes that implement a C++ interface

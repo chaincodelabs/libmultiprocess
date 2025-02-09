@@ -64,6 +64,8 @@ bool EventLoopRef::reset(std::unique_lock<std::mutex>* lock) {
     return done;
 }
 
+ProxyContext::ProxyContext(Connection* connection) : connection(connection), loop{*connection->m_loop} {}
+
 Connection::~Connection()
 {
     // Shut down RPC system first, since this will garbage collect Server
@@ -119,18 +121,18 @@ Connection::~Connection()
         m_sync_cleanup_fns.pop_front();
     }
     while (!m_async_cleanup_fns.empty()) {
-        const std::unique_lock<std::mutex> lock(m_loop.m_mutex);
-        m_loop.m_async_fns.emplace_back(std::move(m_async_cleanup_fns.front()));
+        const std::unique_lock<std::mutex> lock(m_loop->m_mutex);
+        m_loop->m_async_fns.emplace_back(std::move(m_async_cleanup_fns.front()));
         m_async_cleanup_fns.pop_front();
     }
-    std::unique_lock<std::mutex> lock(m_loop.m_mutex);
-    m_loop.startAsyncThread(lock);
-    m_loop.removeClient(lock);
+    std::unique_lock<std::mutex> lock(m_loop->m_mutex);
+    m_loop->startAsyncThread(lock);
+    m_loop.reset(&lock);
 }
 
 CleanupIt Connection::addSyncCleanup(std::function<void()> fn)
 {
-    const std::unique_lock<std::mutex> lock(m_loop.m_mutex);
+    const std::unique_lock<std::mutex> lock(m_loop->m_mutex);
     // Add cleanup callbacks to the front of list, so sync cleanup functions run
     // in LIFO order. This is a good approach because sync cleanup functions are
     // added as client objects are created, and it is natural to clean up
@@ -144,13 +146,13 @@ CleanupIt Connection::addSyncCleanup(std::function<void()> fn)
 
 void Connection::removeSyncCleanup(CleanupIt it)
 {
-    const std::unique_lock<std::mutex> lock(m_loop.m_mutex);
+    const std::unique_lock<std::mutex> lock(m_loop->m_mutex);
     m_sync_cleanup_fns.erase(it);
 }
 
 void Connection::addAsyncCleanup(std::function<void()> fn)
 {
-    const std::unique_lock<std::mutex> lock(m_loop.m_mutex);
+    const std::unique_lock<std::mutex> lock(m_loop->m_mutex);
     // Add async cleanup callbacks to the back of the list. Unlike the sync
     // cleanup list, this list order is more significant because it determines
     // the order server objects are destroyed when there is a sudden disconnect,
@@ -241,7 +243,7 @@ void EventLoop::post(const std::function<void()>& fn)
         return;
     }
     std::unique_lock<std::mutex> lock(m_mutex);
-    addClient(lock);
+    EventLoopRef ref(*this, &lock);
     m_cv.wait(lock, [this] { return m_post_fn == nullptr; });
     m_post_fn = &fn;
     int post_fd{m_post_fd};
@@ -250,13 +252,13 @@ void EventLoop::post(const std::function<void()>& fn)
         KJ_SYSCALL(write(post_fd, &buffer, 1));
     });
     m_cv.wait(lock, [this, &fn] { return m_post_fn != &fn; });
-    removeClient(lock);
 }
 
 void EventLoop::addClient(std::unique_lock<std::mutex>& lock) { m_num_clients += 1; }
 
 bool EventLoop::removeClient(std::unique_lock<std::mutex>& lock)
 {
+    assert(m_num_clients > 0);
     m_num_clients -= 1;
     if (done(lock)) {
         m_cv.notify_all();
@@ -276,16 +278,22 @@ void EventLoop::startAsyncThread(std::unique_lock<std::mutex>& lock)
     } else if (!m_async_fns.empty()) {
         m_async_thread = std::thread([this] {
             std::unique_lock<std::mutex> lock(m_mutex);
-            while (true) {
+            while (!done(lock)) {
                 if (!m_async_fns.empty()) {
-                    addClient(lock);
+                    EventLoopRef ref{*this, &lock};
                     const std::function<void()> fn = std::move(m_async_fns.front());
                     m_async_fns.pop_front();
                     Unlock(lock, fn);
-                    if (removeClient(lock)) break;
+                    // Important to explictly call ref.reset() here and
+                    // explicitly break if the EventLoop is done, not relying on
+                    // while condition above. Reason is that end of `ref`
+                    // lifetime can cause EventLoop::loop() to exit, and if
+                    // there is external code that immediately deletes the
+                    // EventLoop object as soon as EventLoop::loop() method
+                    // returns the while condition above can't be checked.
+                    if (ref.reset()) break;
+                    // Continue without waiting in case there are more async_fns
                     continue;
-                } else if (m_num_clients == 0) {
-                    break;
                 }
                 m_cv.wait(lock);
             }
@@ -391,7 +399,7 @@ kj::Promise<void> ProxyServer<ThreadMap>::makeThread(MakeThreadContext context)
     const std::string from = context.getParams().getName();
     std::promise<ThreadContext*> thread_context;
     std::thread thread([&thread_context, from, this]() {
-        g_thread_context.thread_name = ThreadName(m_connection.m_loop.m_exe_name) + " (from " + from + ")";
+        g_thread_context.thread_name = ThreadName(m_connection.m_loop->m_exe_name) + " (from " + from + ")";
         g_thread_context.waiter = std::make_unique<Waiter>();
         thread_context.set_value(&g_thread_context);
         std::unique_lock<std::mutex> lock(g_thread_context.waiter->m_mutex);

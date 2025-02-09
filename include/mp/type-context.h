@@ -132,13 +132,13 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
                     return;
                 }
                 KJ_IF_MAYBE(exception, kj::runCatchingExceptions([&]() {
-                    server.m_context.connection->m_loop.sync([&] {
+                    server.m_context.loop->sync([&] {
                         auto fulfiller_dispose = kj::mv(fulfiller);
                         fulfiller_dispose->fulfill(kj::mv(call_context));
                     });
                 }))
                 {
-                    server.m_context.connection->m_loop.sync([&]() {
+                    server.m_context.loop->sync([&]() {
                         auto fulfiller_dispose = kj::mv(fulfiller);
                         fulfiller_dispose->reject(kj::mv(*exception));
                     });
@@ -156,11 +156,11 @@ auto PassField(Priority<1>, TypeList<>, ServerContext& server_context, const Fn&
             // thread.
             KJ_IF_MAYBE (thread_server, perhaps) {
                 const auto& thread = static_cast<ProxyServer<Thread>&>(*thread_server);
-                server.m_context.connection->m_loop.log()
+                server.m_context.loop->log()
                     << "IPC server post request  #" << req << " {" << thread.m_thread_context.thread_name << "}";
                 thread.m_thread_context.waiter->post(std::move(invoke));
             } else {
-                server.m_context.connection->m_loop.log()
+                server.m_context.loop->log()
                     << "IPC server error request #" << req << ", missing thread to execute request";
                 throw std::runtime_error("invalid thread handle");
             }

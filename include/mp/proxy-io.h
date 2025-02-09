@@ -310,21 +310,13 @@ public:
     Connection(EventLoop& loop, kj::Own<kj::AsyncIoStream>&& stream_)
         : m_loop(loop), m_stream(kj::mv(stream_)),
           m_network(*m_stream, ::capnp::rpc::twoparty::Side::CLIENT, ::capnp::ReaderOptions()),
-          m_rpc_system(::capnp::makeRpcClient(m_network))
-    {
-        std::unique_lock<std::mutex> lock(m_loop.m_mutex);
-        m_loop.addClient(lock);
-    }
+          m_rpc_system(::capnp::makeRpcClient(m_network)) {}
     Connection(EventLoop& loop,
         kj::Own<kj::AsyncIoStream>&& stream_,
         const std::function<::capnp::Capability::Client(Connection&)>& make_client)
         : m_loop(loop), m_stream(kj::mv(stream_)),
           m_network(*m_stream, ::capnp::rpc::twoparty::Side::SERVER, ::capnp::ReaderOptions()),
-          m_rpc_system(::capnp::makeRpcServer(m_network, make_client(*this)))
-    {
-        std::unique_lock<std::mutex> lock(m_loop.m_mutex);
-        m_loop.addClient(lock);
-    }
+          m_rpc_system(::capnp::makeRpcServer(m_network, make_client(*this))) {}
 
     //! Run cleanup functions. Must be called from the event loop thread. First
     //! calls synchronous cleanup functions while blocked (to free capnp
@@ -353,12 +345,12 @@ public:
         // to the EventLoop TaskSet to avoid "Promise callback destroyed itself"
         // error in cases where f deletes this Connection object.
         m_on_disconnect.add(m_network.onDisconnect().then(
-            [f = std::move(f), this]() mutable { m_loop.m_task_set->add(kj::evalLater(kj::mv(f))); }));
+            [f = std::move(f), this]() mutable { m_loop->m_task_set->add(kj::evalLater(kj::mv(f))); }));
     }
 
-    EventLoop& m_loop;
+    EventLoopRef m_loop;
     kj::Own<kj::AsyncIoStream> m_stream;
-    LoggingErrorHandler m_error_handler{m_loop};
+    LoggingErrorHandler m_error_handler{*m_loop};
     kj::TaskSet m_on_disconnect{m_error_handler};
     ::capnp::TwoPartyVatNetwork m_network;
     std::optional<::capnp::RpcSystem<::capnp::rpc::twoparty::VatId>> m_rpc_system;
@@ -401,10 +393,7 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
     : m_client(std::move(client)), m_context(connection)
 
 {
-    {
-        std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
-        m_context.connection->m_loop.addClient(lock);
-    }
+    EventLoopRef loop{*m_context.loop};
 
     // Handler for the connection getting destroyed before this client object.
     auto cleanup_it = m_context.connection->addSyncCleanup([this]() {
@@ -412,10 +401,7 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
         {
             typename Interface::Client(std::move(m_client));
         }
-        {
-            std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
-            m_context.connection->m_loop.removeClient(lock);
-        }
+        m_context.loop.reset();
         m_context.connection = nullptr;
     });
 
@@ -443,16 +429,12 @@ ProxyClientBase<Interface, Impl>::ProxyClientBase(typename Interface::Client cli
         Sub::destroy(*this);
 
         // FIXME: Could just invoke removed addCleanup fn here instead of duplicating code
-        m_context.connection->m_loop.sync([&]() {
+        m_context.loop->sync([&]() {
             // Release client capability by move-assigning to temporary.
             {
                 typename Interface::Client(std::move(m_client));
             }
-            {
-                std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
-                m_context.connection->m_loop.removeClient(lock);
-            }
-
+            m_context.loop.reset();
             if (destroy_connection) {
                 delete m_context.connection;
                 m_context.connection = nullptr;
@@ -474,8 +456,6 @@ ProxyServerBase<Interface, Impl>::ProxyServerBase(std::shared_ptr<Impl> impl, Co
     : m_impl(std::move(impl)), m_context(&connection)
 {
     assert(m_impl);
-    std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
-    m_context.connection->m_loop.addClient(lock);
 }
 
 //! ProxyServer destructor, called from the EventLoop thread by Cap'n Proto
@@ -509,8 +489,6 @@ ProxyServerBase<Interface, Impl>::~ProxyServerBase()
         });
     }
     assert(m_context.cleanup_fns.empty());
-    std::unique_lock<std::mutex> lock(m_context.connection->m_loop.m_mutex);
-    m_context.connection->m_loop.removeClient(lock);
 }
 
 //! If the capnp interface defined a special "destroy" method, as described the
