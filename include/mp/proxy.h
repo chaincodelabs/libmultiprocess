@@ -54,7 +54,7 @@ inline void CleanupRun(CleanupList& fns) {
 class EventLoopRef
 {
 public:
-    explicit EventLoopRef(EventLoop& loop, std::unique_lock<std::mutex>* lock = nullptr);
+    explicit EventLoopRef(EventLoop& loop, Lock* lock = nullptr);
     EventLoopRef(EventLoopRef&& other) noexcept : m_loop(other.m_loop) { other.m_loop = nullptr; }
     EventLoopRef(const EventLoopRef&) = delete;
     EventLoopRef& operator=(const EventLoopRef&) = delete;
@@ -62,10 +62,10 @@ public:
     ~EventLoopRef() { reset(); }
     EventLoop& operator*() const { assert(m_loop); return *m_loop; }
     EventLoop* operator->() const { assert(m_loop); return m_loop; }
-    bool reset(std::unique_lock<std::mutex>* lock = nullptr);
+    bool reset(Lock* lock = nullptr);
 
     EventLoop* m_loop{nullptr};
-    std::unique_lock<std::mutex>* m_lock{nullptr};
+    Lock* m_lock{nullptr};
 };
 
 //! Context data associated with proxy client and server classes.

@@ -6,6 +6,7 @@
 #define MP_UTIL_H
 
 #include <capnp/schema.h>
+#include <cassert>
 #include <cstddef>
 #include <functional>
 #include <future>
@@ -13,6 +14,7 @@
 #include <kj/exception.h>
 #include <kj/string-tree.h>
 #include <memory>
+#include <mutex>
 #include <string.h>
 #include <string>
 #include <tuple>
@@ -143,6 +145,44 @@ struct PtrOrValue {
     T* operator->() { return &**this; }
     T& operator*() const { return data.index() ? std::get<T>(data) : *std::get<T*>(data); }
     T* operator->() const { return &**this; }
+};
+
+// Annotated mutex and lock class (https://clang.llvm.org/docs/ThreadSafetyAnalysis.html)
+#if defined(__clang__) && (!defined(SWIG))
+#define MP_TSA(x)   __attribute__((x))
+#else
+#define MP_TSA(x)   // no-op
+#endif
+
+#define MP_CAPABILITY(x)        MP_TSA(capability(x))
+#define MP_SCOPED_CAPABILITY    MP_TSA(scoped_lockable)
+#define MP_REQUIRES(x)          MP_TSA(requires_capability(x))
+#define MP_ACQUIRE(...)         MP_TSA(acquire_capability(__VA_ARGS__))
+#define MP_RELEASE(...)         MP_TSA(release_capability(__VA_ARGS__))
+#define MP_ASSERT_CAPABILITY(x) MP_TSA(assert_capability(x))
+#define MP_GUARDED_BY(x)        MP_TSA(guarded_by(x))
+
+class MP_CAPABILITY("mutex") Mutex {
+public:
+    void lock() MP_ACQUIRE() { m_mutex.lock(); }
+    void unlock() MP_RELEASE() { m_mutex.unlock(); }
+
+    std::mutex m_mutex;
+};
+
+class MP_SCOPED_CAPABILITY Lock {
+public:
+    explicit Lock(Mutex& m) MP_ACQUIRE(m) : m_lock(m.m_mutex) {}
+    ~Lock() MP_RELEASE() {}
+    void unlock() MP_RELEASE() { m_lock.unlock(); }
+    void lock() MP_ACQUIRE() { m_lock.lock(); }
+    void assert_locked(Mutex& mutex) MP_ASSERT_CAPABILITY() MP_ASSERT_CAPABILITY(mutex)
+    {
+        assert(m_lock.mutex() == &mutex.m_mutex);
+        assert(m_lock);
+    }
+
+    std::unique_lock<std::mutex> m_lock;
 };
 
 //! Analog to std::lock_guard that unlocks instead of locks.
