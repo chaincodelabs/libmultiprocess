@@ -28,13 +28,13 @@ set(MPGEN_EXECUTABLE "" CACHE FILEPATH "If specified, should be full path to an 
 
 include("cmake/compat_config.cmake")
 include("cmake/pthread_checks.cmake")
-include(CTest)
 include(GNUInstallDirs)
 
 # Set convenience variables for subdirectories.
 set(MP_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   set(MP_STANDALONE TRUE)
+  include(CTest)
 else()
   # Set MP_INCLUDE_DIR for parent directories too, so target_capnp_sources calls
   # in parent directories can use it and not need to specify include directories
