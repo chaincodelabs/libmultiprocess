@@ -225,6 +225,7 @@ void EventLoop::post(const std::function<void()>& fn)
         return;
     }
     std::unique_lock<std::mutex> lock(m_mutex);
+    addClient(lock);
     m_cv.wait(lock, [this] { return m_post_fn == nullptr; });
     m_post_fn = &fn;
     int post_fd{m_post_fd};
@@ -233,21 +234,23 @@ void EventLoop::post(const std::function<void()>& fn)
         KJ_SYSCALL(write(post_fd, &buffer, 1));
     });
     m_cv.wait(lock, [this, &fn] { return m_post_fn != &fn; });
+    removeClient(lock);
 }
 
 void EventLoop::addClient(std::unique_lock<std::mutex>& lock) { m_num_clients += 1; }
 
-void EventLoop::removeClient(std::unique_lock<std::mutex>& lock)
+bool EventLoop::removeClient(std::unique_lock<std::mutex>& lock)
 {
     m_num_clients -= 1;
     if (done(lock)) {
         m_cv.notify_all();
         int post_fd{m_post_fd};
-        Unlock(lock, [&] {
-            char buffer = 0;
-            KJ_SYSCALL(write(post_fd, &buffer, 1)); // NOLINT(bugprone-suspicious-semicolon)
-        });
+        lock.unlock();
+        char buffer = 0;
+        KJ_SYSCALL(write(post_fd, &buffer, 1)); // NOLINT(bugprone-suspicious-semicolon)
+        return true;
     }
+    return false;
 }
 
 void EventLoop::startAsyncThread(std::unique_lock<std::mutex>& lock)
@@ -263,7 +266,7 @@ void EventLoop::startAsyncThread(std::unique_lock<std::mutex>& lock)
                     const std::function<void()> fn = std::move(m_async_fns.front());
                     m_async_fns.pop_front();
                     Unlock(lock, fn);
-                    removeClient(lock);
+                    if (removeClient(lock)) break;
                     continue;
                 } else if (m_num_clients == 0) {
                     break;
