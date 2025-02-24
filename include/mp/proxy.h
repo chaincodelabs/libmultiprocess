@@ -8,6 +8,7 @@
 #include <mp/util.h>
 
 #include <array>
+#include <cassert>
 #include <functional>
 #include <list>
 #include <stddef.h>
@@ -47,13 +48,34 @@ inline void CleanupRun(CleanupList& fns) {
     }
 }
 
+//! Event loop smart pointer automatically managing m_num_clients.
+//! If lock pointer is passed to constructor will use the provided lock,
+//! otherwise will lock EventLoop::m_mutex itself.
+class EventLoopRef
+{
+public:
+    explicit EventLoopRef(EventLoop& loop, Lock* lock = nullptr);
+    EventLoopRef(EventLoopRef&& other) noexcept : m_loop(other.m_loop) { other.m_loop = nullptr; }
+    EventLoopRef(const EventLoopRef&) = delete;
+    EventLoopRef& operator=(const EventLoopRef&) = delete;
+    EventLoopRef& operator=(EventLoopRef&&) = delete;
+    ~EventLoopRef() { reset(); }
+    EventLoop& operator*() const { assert(m_loop); return *m_loop; }
+    EventLoop* operator->() const { assert(m_loop); return m_loop; }
+    bool reset(Lock* lock = nullptr);
+
+    EventLoop* m_loop{nullptr};
+    Lock* m_lock{nullptr};
+};
+
 //! Context data associated with proxy client and server classes.
 struct ProxyContext
 {
     Connection* connection;
+    EventLoopRef loop;
     CleanupList cleanup_fns;
 
-    ProxyContext(Connection* connection) : connection(connection) {}
+    ProxyContext(Connection* connection);
 };
 
 //! Base class for generated ProxyClient classes that implement a C++ interface
