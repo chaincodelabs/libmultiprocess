@@ -80,12 +80,14 @@ function(target_capnp_sources target include_prefix)
       DEPENDS ${capnp_file}
       VERBATIM
     )
-    target_sources(${target} PRIVATE
+    set(generated_sources
       ${CMAKE_CURRENT_BINARY_DIR}/${capnp_file}.c++
       ${CMAKE_CURRENT_BINARY_DIR}/${capnp_file}.proxy-client.c++
       ${CMAKE_CURRENT_BINARY_DIR}/${capnp_file}.proxy-server.c++
       ${CMAKE_CURRENT_BINARY_DIR}/${capnp_file}.proxy-types.c++
     )
+    set_source_files_properties(${generated_sources} PROPERTIES SKIP_LINTING ON)
+    target_sources(${target} PRIVATE ${generated_sources})
 
     list(APPEND generated_headers ${capnp_file}.h)
   endforeach()
