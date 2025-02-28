@@ -37,20 +37,45 @@ struct StructField
     }
     Struct& m_struct;
 
-    // clang-format off
-    template<typename A = Accessor> auto get() const -> decltype(A::get(this->m_struct)) { return A::get(this->m_struct); }
-    template<typename A = Accessor> auto has() const -> std::enable_if_t<A::optional, bool> { return A::getHas(m_struct); }
-    template<typename A = Accessor> auto has() const -> std::enable_if_t<!A::optional && A::boxed, bool> { return A::has(m_struct); }
-    template<typename A = Accessor> auto has() const -> std::enable_if_t<!A::optional && !A::boxed, bool> { return true; }
-    template<typename A = Accessor> auto want() const -> std::enable_if_t<A::requested, bool> { return A::getWant(m_struct); }
-    template<typename A = Accessor> auto want() const -> std::enable_if_t<!A::requested, bool> { return true; }
-    template<typename A = Accessor, typename... Args> decltype(auto) set(Args&&... args) const { return A::set(this->m_struct, std::forward<Args>(args)...); }
-    template<typename A = Accessor, typename... Args> decltype(auto) init(Args&&... args) const { return A::init(this->m_struct, std::forward<Args>(args)...); }
-    template<typename A = Accessor> auto setHas() const -> std::enable_if_t<A::optional> { return A::setHas(m_struct); }
-    template<typename A = Accessor> auto setHas() const -> std::enable_if_t<!A::optional> { }
-    template<typename A = Accessor> auto setWant() const -> std::enable_if_t<A::requested> { return A::setWant(m_struct); }
-    template<typename A = Accessor> auto setWant() const -> std::enable_if_t<!A::requested> { }
-    // clang-format on
+    decltype(auto) get() const { return Accessor::get(this->m_struct); }
+
+    bool has() const {
+      if constexpr (Accessor::optional) {
+        return Accessor::getHas(m_struct);
+      } else if constexpr (Accessor::boxed) {
+        return Accessor::has(m_struct);
+      } else {
+        return true;
+      }
+    }
+
+    bool want() const {
+      if constexpr (Accessor::requested) {
+        return Accessor::getWant(m_struct);
+      } else {
+        return true;
+      }
+    }
+
+    template <typename... Args> decltype(auto) set(Args &&...args) const {
+      return Accessor::set(this->m_struct, std::forward<Args>(args)...);
+    }
+
+    template <typename... Args> decltype(auto) init(Args &&...args) const {
+      return Accessor::init(this->m_struct, std::forward<Args>(args)...);
+    }
+
+    void setHas() const {
+      if constexpr (Accessor::optional) {
+        Accessor::setHas(m_struct);
+      }
+    }
+
+    void setWant() const {
+      if constexpr (Accessor::requested) {
+        Accessor::setWant(m_struct);
+      }
+    }
 };
 
 
@@ -650,19 +675,14 @@ void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, Fiel
 //! return value with value of `ret()`. This is useful for avoiding code
 //! duplication and branching in generic code that forwards calls to functions.
 template <typename Fn, typename Ret>
-auto ReplaceVoid(Fn&& fn, Ret&& ret) ->
-    std::enable_if_t<std::is_same_v<void, decltype(fn())>, decltype(ret())>
+auto ReplaceVoid(Fn&& fn, Ret&& ret)
 {
-    fn();
-    return ret();
-}
-
-//! Overload of above for non-void `fn()` case.
-template <typename Fn, typename Ret>
-auto ReplaceVoid(Fn&& fn, Ret&& ret) ->
-    std::enable_if_t<!std::is_same_v<void, decltype(fn())>, decltype(fn())>
-{
-    return fn();
+    if constexpr (std::is_same_v<decltype(fn()), void>) {
+        fn();
+        return ret();
+    } else {
+        return fn();
+    }
 }
 
 extern std::atomic<int> server_reqs;
