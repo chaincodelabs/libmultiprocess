@@ -389,30 +389,17 @@ struct ClientParam
 
     struct BuildParams : IterateFieldsHelper<BuildParams, sizeof...(Types)>
     {
-        template <typename... Args>
-        void handleField(Args&&... args)
+        template <typename Params, typename ParamList>
+        void handleField(ClientInvokeContext& invoke_context, Params& params, ParamList)
         {
-            callBuild<0>(std::forward<Args>(args)...);
-        }
+            auto const fun = [&]<typename... Values>(Values&&... values) {
+                MaybeBuildField(std::integral_constant<bool, Accessor::in>(), ParamList(), invoke_context,
+                    Make<StructField, Accessor>(params), std::forward<Values>(values)...);
+                MaybeSetWant(
+                    ParamList(), Priority<1>(), std::forward<Values>(values)..., Make<StructField, Accessor>(params));
+            };
 
-        // TODO Possible optimization to speed up compile time:
-        // https://stackoverflow.com/a/7858971 Using enable_if below to check
-        // position when unpacking tuple might be slower than pattern matching
-        // approach in the stack overflow solution
-        template <size_t I, typename... Args>
-        auto callBuild(Args&&... args) -> std::enable_if_t<(I < sizeof...(Types))>
-        {
-            callBuild<I + 1>(std::forward<Args>(args)..., std::get<I>(m_client_param->m_values));
-        }
-
-        template <size_t I, typename Params, typename ParamList, typename... Values>
-        auto callBuild(ClientInvokeContext& invoke_context, Params& params, ParamList, Values&&... values) ->
-            std::enable_if_t<(I == sizeof...(Types))>
-        {
-            MaybeBuildField(std::integral_constant<bool, Accessor::in>(), ParamList(), invoke_context,
-                Make<StructField, Accessor>(params), std::forward<Values>(values)...);
-            MaybeSetWant(
-                ParamList(), Priority<1>(), std::forward<Values>(values)..., Make<StructField, Accessor>(params));
+            std::apply(fun, m_client_param->m_values);
         }
 
         BuildParams(ClientParam* client_param) : m_client_param(client_param) {}
@@ -421,24 +408,15 @@ struct ClientParam
 
     struct ReadResults : IterateFieldsHelper<ReadResults, sizeof...(Types)>
     {
-        template <typename... Args>
-        void handleField(Args&&... args)
+        template <typename Results, typename... Params>
+        void handleField(ClientInvokeContext& invoke_context, Results& results, TypeList<Params...>)
         {
-            callRead<0>(std::forward<Args>(args)...);
-        }
+            auto const fun = [&]<typename... Values>(Values&&... values) {
+                MaybeReadField(std::integral_constant<bool, Accessor::out>(), TypeList<Decay<Params>...>(), invoke_context,
+                    Make<StructField, Accessor>(results), ReadDestUpdate(values)...);
+            };
 
-        template <int I, typename... Args>
-        auto callRead(Args&&... args) -> std::enable_if_t<(I < sizeof...(Types))>
-        {
-            callRead<I + 1>(std::forward<Args>(args)..., std::get<I>(m_client_param->m_values));
-        }
-
-        template <int I, typename Results, typename... Params, typename... Values>
-        auto callRead(ClientInvokeContext& invoke_context, Results& results, TypeList<Params...>, Values&&... values)
-            -> std::enable_if_t<I == sizeof...(Types)>
-        {
-            MaybeReadField(std::integral_constant<bool, Accessor::out>(), TypeList<Decay<Params>...>(), invoke_context,
-                Make<StructField, Accessor>(results), ReadDestUpdate(values)...);
+            std::apply(fun, m_client_param->m_values);
         }
 
         ReadResults(ClientParam* client_param) : m_client_param(client_param) {}
