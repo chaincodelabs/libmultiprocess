@@ -215,7 +215,7 @@ static void Generate(kj::StringPtr src_prefix,
     cpp_types << "namespace mp {\n";
 
     std::string guard = output_path;
-    std::transform(guard.begin(), guard.end(), guard.begin(), [](unsigned char c) -> unsigned char {
+    std::ranges::transform(guard, guard.begin(), [](unsigned char c) -> unsigned char {
         if ('0' <= c && c <= '9') return c;
         if ('A' <= c && c <= 'Z') return c;
         if ('a' <= c && c <= 'z') return c - 'a' + 'A';
