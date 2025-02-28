@@ -172,7 +172,7 @@ public:
     void addClient(std::unique_lock<std::mutex>& lock);
     bool removeClient(std::unique_lock<std::mutex>& lock);
     //! Check if loop should exit.
-    bool done(std::unique_lock<std::mutex>& lock);
+    bool done(std::unique_lock<std::mutex>& lock) const;
 
     Logger log()
     {
